@@ -1,0 +1,7 @@
+.DS_Store
+*.log
+
+# Python caches / virtualenvs
+__pycache__/
+*.pyc
+.venv/
