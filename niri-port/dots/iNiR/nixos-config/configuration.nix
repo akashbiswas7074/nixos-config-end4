@@ -1,6 +1,7 @@
 { config, pkgs, ... }:
 
 let
+  inirFlake = builtins.getFlake (toString ../.);
   # --- CURSOR DEB PACKAGE DEFINITION ---
   cursor-deb = pkgs.stdenv.mkDerivation rec {
     pname = "cursor";
@@ -66,7 +67,10 @@ let
   };
 in
 {
-  imports = [ ./hardware-configuration.nix ];
+  imports = [
+    ./hardware-configuration.nix
+    inirFlake.nixosModules.default
+  ];
 
   # Bootloader
   boot.loader.systemd-boot.enable = true;
@@ -108,7 +112,6 @@ in
     };
   };
 
-  programs.niri.enable = true;
   services.printing.enable = true;
 
   # Audio
@@ -131,8 +134,8 @@ in
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
- polkit_gnome
- cursor-deb
+    polkit_gnome
+    cursor-deb
     vim
     wget
     git
@@ -147,7 +150,8 @@ in
     swayidle      
     swaylock      
     libnotify     
-    wl-clipboard  
+    wl-clipboard
+    zstd
   ];
 
   # Nix-LD for binary compatibility
@@ -155,6 +159,7 @@ in
   programs.nix-ld.libraries = with pkgs; [
     stdenv.cc.cc
     zlib
+    zstd
   ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -162,11 +167,14 @@ in
   services.upower.enable = true;
   xdg.portal.enable = true;
   xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-     #bloutooth
-  hardware.bluetooth.enable = true;
-services.blueman.enable = true;
 
+  programs.inir = {
+    enable = true;
+    enableNiri = true;
+    enablePolkit = true;
+    enableBluetooth = true;
+    dellGSeries.enable = true;
+  };
 
-  security.polkit.enable = true;
   system.stateVersion = "25.11";
 }

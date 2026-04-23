@@ -71,6 +71,7 @@ binds {
     Mod+Return { spawn "/home/akashbiswas/.local/bin/inir" "terminal"; }
     Super+E { spawn "/home/akashbiswas/.local/bin/inir" "files"; }
     Super+W { spawn "/home/akashbiswas/.local/bin/inir" "browser"; }
+    Super+F9 { spawn "/home/akashbiswas/.local/bin/dell-g-controller-launch"; }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Window management

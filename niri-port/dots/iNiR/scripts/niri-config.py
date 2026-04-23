@@ -27,6 +27,7 @@ from difflib import unified_diff
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -60,6 +61,19 @@ def get_repo_default_niri_dir():
     return Path(__file__).resolve().parent / ".." / "defaults" / "niri"
 
 
+def get_niri_bin() -> str:
+    """Resolve niri binary, preferring the active system build on NixOS."""
+    env_bin = os.environ.get("NIRI_BIN", "")
+    if env_bin and Path(env_bin).is_file() and os.access(env_bin, os.X_OK):
+        return env_bin
+
+    system_niri = "/run/current-system/sw/bin/niri"
+    if Path(system_niri).is_file() and os.access(system_niri, os.X_OK):
+        return system_niri
+
+    return shutil.which("niri") or "niri"
+
+
 def _root_includes(relative_path: str) -> bool:
     config_file = get_niri_config_path()
     if not config_file.exists():
@@ -89,9 +103,7 @@ def resolve_niri_section_file(relative_path: str) -> Path:
 def run_niri(*args):
     """Run niri msg and return output."""
     try:
-        r = subprocess.run(
-            ["niri", "msg", *args], capture_output=True, text=True, timeout=5
-        )
+        r = subprocess.run([get_niri_bin(), "msg", *args], capture_output=True, text=True, timeout=5)
         return r.stdout.strip(), r.returncode
     except Exception as e:
         return str(e), 1
@@ -1034,7 +1046,7 @@ def cmd_validate():
 
     try:
         r = subprocess.run(
-            ["niri", "validate", "-c", str(config_file)],
+            [get_niri_bin(), "validate", "-c", str(config_file)],
             capture_output=True,
             text=True,
             timeout=5,
@@ -1207,7 +1219,7 @@ def _validate_config():
         return True, ""  # no config to validate
     try:
         r = subprocess.run(
-            ["niri", "validate", "-c", str(config_file)],
+            [get_niri_bin(), "validate", "-c", str(config_file)],
             capture_output=True,
             text=True,
             timeout=5,

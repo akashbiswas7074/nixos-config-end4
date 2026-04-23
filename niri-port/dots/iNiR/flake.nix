@@ -22,7 +22,7 @@
                 #!${pkgs.bash}/bin/bash
                 set -euo pipefail
 
-                subcmd="${1:-}"
+                subcmd="''${1:-}"
                 shift || true
 
                 case "$subcmd" in
@@ -220,6 +220,109 @@
             
             home.file = configLinks // localLinks;
           };
+        };
+
+      nixosModules.default = { config, lib, pkgs, ... }:
+        let
+          cfg = config.programs.inir;
+        in
+        {
+          options.programs.inir = {
+            enable = lib.mkEnableOption "system-wide iNiR integration";
+
+            package = lib.mkOption {
+              type = lib.types.package;
+              default = self.packages.${pkgs.system}.default;
+              description = "iNiR package to install system-wide.";
+            };
+
+            enableNiri = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Enable Niri compositor service.";
+            };
+
+            enablePolkit = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Enable polkit and install a GUI polkit agent.";
+            };
+
+            enableBluetooth = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Enable Bluetooth stack and Blueman integration.";
+            };
+
+            dellGSeries = {
+              enable = lib.mkEnableOption "Dell G Series controller system requirements";
+              usbVendorId = lib.mkOption {
+                type = lib.types.str;
+                default = "187c";
+                description = "USB vendor ID for Dell G controller udev rule.";
+              };
+              usbProductId = lib.mkOption {
+                type = lib.types.str;
+                default = "0550";
+                description = "USB product ID for Dell G controller udev rule.";
+              };
+            };
+          };
+
+          config = lib.mkIf cfg.enable (lib.mkMerge [
+            {
+              environment.systemPackages = with pkgs; [
+                cfg.package
+                go
+                hyprpicker
+                swww
+                uv
+                starship
+                eza
+                kdePackages.kdialog
+                kdePackages.kirigami.unwrapped
+                kdePackages.plasma-integration
+                kdePackages.syntax-highlighting
+                kdePackages.qtmultimedia
+                polkit_gnome
+                bluez
+                blueman
+                zstd
+                python313
+                python313Packages.pyusb
+                python313Packages.pexpect
+              ];
+
+              programs.nix-ld.enable = true;
+              programs.nix-ld.libraries = with pkgs; [
+                stdenv.cc.cc
+                zlib
+                zstd
+              ];
+            }
+
+            (lib.mkIf cfg.enableNiri {
+              programs.niri.enable = true;
+            })
+
+            (lib.mkIf cfg.enablePolkit {
+              security.polkit.enable = true;
+            })
+
+            (lib.mkIf cfg.enableBluetooth {
+              hardware.bluetooth.enable = true;
+              services.blueman.enable = true;
+            })
+
+            (lib.mkIf cfg.dellGSeries.enable {
+              services.udev.extraRules = ''
+                SUBSYSTEM=="usb", ATTRS{idVendor}=="${cfg.dellGSeries.usbVendorId}", ATTRS{idProduct}=="${cfg.dellGSeries.usbProductId}", MODE="0660", TAG+="uaccess", SYMLINK+="awelc"
+              '';
+
+              boot.extraModulePackages = [ config.boot.kernelPackages.acpi_call ];
+              boot.kernelModules = [ "acpi_call" ];
+            })
+          ]);
         };
     };
 }

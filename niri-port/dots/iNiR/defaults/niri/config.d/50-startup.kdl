@@ -19,9 +19,8 @@ spawn-at-startup "bash" "-c" "wl-paste --type text --watch cliphist store &"
 spawn-at-startup "bash" "-c" "wl-paste --type image --watch cliphist store &"
 
 // Polkit authentication agent — needed for GUI sudo prompts (software install,
-// disk mount, etc.). iNiR's setup auto-detects which agent is installed and
-// patches this line accordingly (KDE, GNOME, MATE, LXQt, or lxpolkit).
-spawn-at-startup "/usr/lib/mate-polkit/polkit-mate-authentication-agent-1"
+// disk mount, etc.). Use a resilient launcher for NixOS and mixed setups.
+spawn-at-startup "bash" "-lc" "for agent in \"$HOME/.nix-profile/libexec/polkit-gnome-authentication-agent-1\" /run/current-system/sw/libexec/polkit-gnome-authentication-agent-1 /usr/lib/mate-polkit/polkit-mate-authentication-agent-1 /run/current-system/sw/bin/lxqt-policykit-agent /run/current-system/sw/bin/lxpolkit; do [[ -x \"$agent\" ]] && exec \"$agent\"; done; agent=$(ls -1 /nix/store/*-polkit-gnome-*/libexec/polkit-gnome-authentication-agent-1 2>/dev/null | tail -n 1); [[ -n \"$agent\" ]] && exec \"$agent\"; command -v lxqt-policykit-agent >/dev/null 2>&1 && exec lxqt-policykit-agent; command -v lxpolkit >/dev/null 2>&1 && exec lxpolkit; exit 0"
 
 // ── iNiR shell ──────────────────────────────────────────────────────────────
 // iNiR is managed by the user systemd service (inir.service).
