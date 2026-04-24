@@ -5,3 +5,7 @@
 __pycache__/
 *.pyc
 .venv/
+
+# nix-build / nixos-rebuild output links
+result
+**/result

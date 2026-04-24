@@ -133,6 +133,10 @@ wiki/
 mkdocs.yml
 site/
 
+# ── Nix (local build outputs; must not be copied into inir-shell) ──
+result
+nixos-config/result
+
 # ── Stale paths (prevent accidental commits) ─────────────────
 /src/
 modules/ii/overlay/floatingImage/undefined/

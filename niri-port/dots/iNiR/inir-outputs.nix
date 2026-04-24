@@ -1,18 +1,12 @@
-{
-  description = "iNiR: A complete desktop shell for Niri, built on Quickshell";
-
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    systems.url = "github:nix-systems/default-linux";
-  };
-
-  outputs = { self, nixpkgs, systems }:
-    let
-      inherit (nixpkgs) lib;
-      eachSystem = lib.genAttrs (import systems);
-    in
-    {
-      packages = eachSystem (system:
+# iNiR packages and NixOS / Home-Manager modules (imported from the repo root flake; no per-directory flake).
+{ nixpkgs, systems }:
+let
+  inherit (nixpkgs) lib;
+  inirSource = ./.;
+  eachSystem = lib.genAttrs (import systems);
+in
+rec {
+  packages = eachSystem (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
           awwwCompat = pkgs.symlinkJoin {
@@ -77,6 +71,10 @@
             installPhase = ''
               mkdir -p $out/share/quickshell/inir
               cp -r . $out/share/quickshell/inir/
+              # nixos-config/result (and ./result) are local nix-build outputs; do not copy into the store
+              # or fixup complains: dangling symlinks to GC'd /nix/store/... paths
+              rm -f $out/share/quickshell/inir/result
+              rm -f $out/share/quickshell/inir/nixos-config/result
 
               mkdir -p $out/bin
               makeWrapper $out/share/quickshell/inir/scripts/inir $out/bin/inir \
@@ -161,10 +159,10 @@
           };
         });
 
-      homeModules.default = { config, lib, pkgs, ... }:
-        let
-          cfg = config.programs.inir;
-          src = self;
+  homeModules.default = { config, lib, pkgs, ... }:
+    let
+      cfg = config.programs.inir;
+      src = inirSource;
           
           # Helper function to recursively find files and create a mapping
           # relative to the 'dots' directory.
@@ -188,7 +186,7 @@
             enable = lib.mkEnableOption "iNiR shell";
             package = lib.mkOption {
               type = lib.types.package;
-              default = self.packages.${pkgs.system}.default;
+              default = packages.${pkgs.system}.default;
             };
           };
 
@@ -197,7 +195,7 @@
               cfg.package 
               pkgs.go
               pkgs.hyprpicker
-              self.packages.${pkgs.system}."awww-compat"
+              packages.${pkgs.system}."awww-compat"
               pkgs.uv
               pkgs.starship
               pkgs.eza
@@ -233,7 +231,7 @@
 
             package = lib.mkOption {
               type = lib.types.package;
-              default = self.packages.${pkgs.system}.default;
+              default = packages.${pkgs.system}.default;
               description = "iNiR package to install system-wide.";
             };
 
@@ -307,6 +305,20 @@
 
             (lib.mkIf cfg.enablePolkit {
               security.polkit.enable = true;
+              # GUI pkexec needs an auth agent (DBus + Wayland). Tie to the graphical session
+              # when it exists; also want default.target so Niri/minimal seat setups still pull it in.
+              systemd.user.services.polkit-gnome-authentication-agent-1 = {
+                description = "Polkit authentication agent (GNOME)";
+                partOf = [ "graphical-session.target" ];
+                after = [ "graphical-session-pre.target" ];
+                wantedBy = [ "graphical-session.target" "default.target" ];
+                serviceConfig = {
+                  Type = "simple";
+                  ExecStart = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+                  Restart = "on-failure";
+                  RestartSec = 3;
+                };
+              };
             })
 
             (lib.mkIf cfg.enableBluetooth {
@@ -324,5 +336,4 @@
             })
           ]);
         };
-    };
 }

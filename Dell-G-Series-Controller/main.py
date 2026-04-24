@@ -1,7 +1,11 @@
 #!/bin/python
+import os
+import re
 import sys
 import pexpect
 import tempfile
+from pathlib import Path
+
 import awelc
 import PySide6
 from PySide6.QtCore import (QSettings, QTimer)
@@ -13,6 +17,138 @@ from patch import g15_5520_patch
 from patch import g15_5515_patch
 from patch import g15_5511_patch
 from patch import g16_7630_patch
+
+
+def _acpi_id_eq(got, expect):
+    """Compare ACPI model id strings; firmware may vary 0x12C0 vs 0x12c0."""
+    if got is None or expect is None:
+        return False
+    got, expect = str(got).strip(), str(expect).strip()
+    if not got or not expect:
+        return False
+    try:
+        return int(got, 0) == int(expect, 0)
+    except ValueError:
+        return got.lower() == expect.lower()
+
+
+def _awelc_usb_available():
+    """Alienware / Dell RGB via pyusb (187c:0550 / 0551). Without it, awelc calls throw — Qt may hide those errors in slots."""
+    try:
+        import usb.core
+        for pid in (0x0550, 0x0551):
+            if usb.core.find(idVendor=0x187C, idProduct=pid) is not None:
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _app_icon():
+    p = Path(__file__).resolve().parent / "window.png"
+    if p.is_file():
+        return QIcon(str(p))
+    return QIcon.fromTheme("video-display", QIcon.fromTheme("computer"))
+
+
+def _int_from_acpi(v):
+    """Coerce acpi_call / parse_shell_exec values (str '0x..', int, bytes) for math/display."""
+    if v is None:
+        return 0
+    if isinstance(v, int):
+        return v
+    if isinstance(v, (bytes, bytearray)):
+        s = v.decode("ascii", errors="replace").strip()
+    else:
+        s = str(v).strip()
+    if not s:
+        return 0
+    return int(s, 0)
+
+
+# pty/polkit output often has no \x00 after the hex; only \r\x00... works in that case.
+_RE_CSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _strip_ansi_sgr(s: str) -> str:
+    if not s:
+        return s
+    return _RE_CSI.sub("", s)
+
+
+def _try_parse_acpi_line(line: str):
+    """
+    Parse one line from the elevated shell: original cr..nul slice, or a lone 0x.. value
+    (e.g. before a prompt) when nul is missing.
+    """
+    if not line:
+        return None
+    cr, nul = line.find("\r"), line.find("\x00")
+    if cr != -1 and nul != -1 and nul > cr + 1:
+        val = line[cr + 1 : nul].strip()
+        if val and not val.lower().startswith("error"):
+            return val
+    # Skip echoed ACPI invocations (many 0x bytes in one line)
+    if "WMAX" in line or (line.count("{") > 0 and line.count("0x") > 1):
+        return None
+    clean = _strip_ansi_sgr(line).strip()
+    if not clean:
+        return None
+    m = re.match(r"^(0x[0-9a-fA-F]+)\b", clean)
+    if m:
+        return m.group(1)
+    if clean.count("0x") == 1:
+        m2 = re.search(r"(0x[0-9a-fA-F]+)\b", clean)
+        if m2:
+            return m2.group(1)
+    return None
+
+
+def _dmi_read_file(path: str) -> str:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def _dmi_combined():
+    """Dell often splits model across product_name, product_version, etc."""
+    keys = [
+        "sys_vendor",
+        "product_family",
+        "product_name",
+        "product_version",
+        "product_sku",
+        "board_vendor",
+        "board_name",
+    ]
+    base = "/sys/class/dmi/id"
+    parts = [ _dmi_read_file(f"{base}/{k}") for k in keys ]
+    return " ".join(p for p in parts if p).strip()
+
+
+def _dmi_looks_like_g15_5525(s: str) -> bool:
+    if not s or "5525" not in s or "5520" in s:
+        return False
+    s_up = s.upper()
+    if "G15" in s_up and "5525" in s:
+        return True
+    if re.search(r"G[\s\-.]*15", s, re.I) and "5525" in s:
+        return True
+    return False
+
+
+def _dmi_looks_like_g15_5520(s: str) -> bool:
+    if not s or "5520" not in s:
+        return False
+    s_up = s.upper()
+    if "G15" in s_up and "5520" in s:
+        return True
+    if re.search(r"G[\s\-.]*15", s, re.I) and "5520" in s:
+        return True
+    return False
+
 
 class MainWindow(QWidget):
 
@@ -77,39 +213,102 @@ class MainWindow(QWidget):
         }
         
         print("Attempting to create elevated bash subprocess.")
-        # Create a shell subprocess (root needed for power related functions)
-        self.shell = pexpect.spawn('bash', encoding='utf-8', logfile=self.logfile, env=None, args=["--noprofile", "--norc"])
-        self.shell.expect("[#$] ")
+        # NixOS: setuid pkexec lives in /run/wrappers; nix-store pkexec cannot elevate.
+        pkexec_bin = "/run/wrappers/bin/pkexec" if os.path.isfile("/run/wrappers/bin/pkexec") else "pkexec"
+        # Polkit can take a while; user must click the auth dialog.
+        pexpect_timeouts = 300
+        # Preserve session env so polkit agent can show a GUI prompt (DISPLAY / WAYLAND / DBUS).
+        self.shell = pexpect.spawn(
+            "bash",
+            encoding="utf-8",
+            logfile=self.logfile,
+            env=os.environ.copy(),
+            args=["--noprofile", "--norc"],
+            timeout=pexpect_timeouts,
+        )
+        self.shell.expect("[#$] ", timeout=pexpect_timeouts)
         self.shell_exec(" export HISTFILE=/dev/null; history -c")
-        #Elevate privileges (pkexec is needed)
-        self.shell_exec("pkexec bash --noprofile --norc")
+        # Elevate privileges (polkit pkexec — approve the prompt for power/ACPI features)
+        self.shell_exec(f"{pkexec_bin} bash --noprofile --norc")
         self.shell_exec(" export HISTFILE=/dev/null; history -c")
         #Check if root or not
         self.is_root = (self.shell_exec("whoami")[1].find("root") != -1)
         if not self.is_root:
             print("Bash shell is NOT root. Disabling ACPI methods...")
-            popup = QMessageBox.warning(self,"Warning","No root access. Power related functions will not work, and will not be displayed.")
+            QMessageBox.warning(
+                self,
+                "No root access",
+                "Power and fan features need a privileged shell (polkit / pkexec).\n\n"
+                "On NixOS: use Foot or Kitty (not a sandboxed IDE terminal), ensure "
+                "polkit-gnome is running, approve the password dialog when the app starts, "
+                "then try again. Log: /tmp/dell-g-series-controller.log",
+            )
             return
 
         print("Sh shell is root. Enabling ACPI methods...")
+
+        if not os.path.exists("/proc/acpi/call"):
+            QMessageBox.critical(
+                self,
+                "acpi_call missing",
+                "/proc/acpi/call is not available. Load the module, then relaunch:\n\n"
+                "  sudo modprobe acpi_call\n\n"
+                "On NixOS with iNiR, enable programs.inir.dellGSeries (boot.kernelModules) "
+                "and rebuild if needed, then reboot.",
+            )
+            return
 
         self._check_laptop_model()
 
         if self.is_dell_g_series:
             print("Laptop model is supported.")
         else:
-            choice = QMessageBox.question(self,"Unrecognized laptop","Laptop model is NOT supported. Try ACPI methods for G15 5525 anyway? You might damage your hardware. Please do not do this if you don't know what you are doing!",QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            choice = QMessageBox.question(
+                self,
+                "Unrecognized laptop",
+                "WMAX get_laptop_model did not match the built-in table, and DMI did not match "
+                "a known G15 model. Try experimental G15 5525-style ACPI? You might damage your "
+                "hardware. See /tmp/dell-g-series-controller.log and DMI_combined in the log.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
             self.is_dell_g_series = (choice == QMessageBox.StandardButton.Yes) #User override
     
     def _check_laptop_model(self):
         """Check for supported laptop model"""
+
+        # G15 5525 (AMD): DMI is more reliable than WMAX get_laptop_model on some BIOS builds;
+        # also avoids 0x0 on the Intel path being mis-taken for G15 5530.
+        dmi0 = _dmi_combined()
+        if _dmi_looks_like_g15_5525(dmi0):
+            self.acpi_cmd = (
+                "echo \"\\_SB.AMW3.WMAX 0 {} {{{}, {}, {}, 0x00}}\" | tee /proc/acpi/call; "
+                "cat /proc/acpi/call"
+            )
+            self.is_dell_g_series = True
+            self.is_keyboard_supported = True
+            self.model = "G15 5525"
+            print("DMI: Dell G15 5525 from {!r} (AMW3; skipping WMAX id table).".format(dmi0))
+            return
+
+        # G15 5520 (Intel): product_name is often "Dell G15 5520" — WMAX id can still mismatch.
+        if _dmi_looks_like_g15_5520(dmi0):
+            self.acpi_cmd = (
+                "echo \"\\_SB.AMWW.WMAX 0 {} {{{}, {}, {}, 0x00}}\" | tee /proc/acpi/call; "
+                "cat /proc/acpi/call"
+            )
+            self.is_dell_g_series = True
+            self.is_keyboard_supported = True
+            self.model = "G15 5520"
+            g15_5520_patch(self)
+            print("DMI: Dell G15 5520 from {!r} (AMWW; skipping WMAX id table).".format(dmi0))
+            return
 
         # Detect Intel models
         self.acpi_cmd = "echo \"\\_SB.AMWW.WMAX 0 {} {{{}, {}, {}, 0x00}}\" | tee /proc/acpi/call; cat /proc/acpi/call"
         laptop_model=self.acpi_call("get_laptop_model")
         
         # Check if G15 5530
-        if (laptop_model == "0x0"):
+        if _acpi_id_eq(laptop_model, "0x0"):
             # TODO - VERIFY-ME - Is "0x0" really the expected response, or should we use a different ACPI call for this model?
             print("Detected dell g15 5530. Laptop model: 0x{}".format(laptop_model))
             self.is_dell_g_series = True
@@ -119,7 +318,7 @@ class MainWindow(QWidget):
             return
 
         # Check if G15 5520
-        if (laptop_model == "0x12c0"):
+        if _acpi_id_eq(laptop_model, "0x12c0"):
             print("Detected dell g15 5520. Laptop model: 0x{}".format(laptop_model))
             self.is_dell_g_series = True
             self.is_keyboard_supported = True
@@ -128,7 +327,7 @@ class MainWindow(QWidget):
             return
 
         # Check if G15 5511
-        if (laptop_model == "0xc80"):
+        if _acpi_id_eq(laptop_model, "0xc80"):
             print("Detected dell g15 5511. Laptop model: 0x{}".format(laptop_model))
             self.is_dell_g_series = True
             self.is_keyboard_supported = True
@@ -137,7 +336,7 @@ class MainWindow(QWidget):
             return
 
         # Check if G16 7630
-        if (laptop_model == "0x0"):
+        if _acpi_id_eq(laptop_model, "0x0"):
             # TODO - VERIFY-ME - Is "0x0" really the expected response, or should we use a different ACPI call for this model?
             print("Detected dell g16 7630. Laptop model: 0x{}".format(laptop_model))
             self.is_dell_g_series = True
@@ -151,7 +350,7 @@ class MainWindow(QWidget):
         laptop_model=self.acpi_call("get_laptop_model")
 
         # Check if G15 5525
-        if (laptop_model == "0x12c0"):
+        if _acpi_id_eq(laptop_model, "0x12c0"):
             print("Detected dell g15 5525. Laptop model: 0x{}".format(laptop_model))
             self.is_dell_g_series = True
             self.is_keyboard_supported = True
@@ -159,14 +358,22 @@ class MainWindow(QWidget):
             return
 
         # Check if G15 5515
-        if (laptop_model == "0xc80"):
+        if _acpi_id_eq(laptop_model, "0xc80"):
             print("Detected dell g15 5515. Laptop model: 0x{}".format(laptop_model))
             self.is_dell_g_series = True
             self.is_keyboard_supported = True
             self.model = "G15 5515"
             g15_5515_patch(self)
+            return
 
-        
+        if dmi0 and not self.is_dell_g_series:
+            print(
+                "Unrecognized WMAX get_laptop_model id after Intel+AMD: {!r} DMI_combined={!r}".format(
+                    laptop_model,
+                    dmi0,
+                )
+            )
+
     def _create_first_exclusive_group(self):
         groupBox = QGroupBox("Keyboard Led")
         vbox = QVBoxLayout()
@@ -322,18 +529,31 @@ class MainWindow(QWidget):
 
 
     def apply_leds(self):
+        if not _awelc_usb_available():
+            QMessageBox.information(
+                self,
+                "Keyboard LED",
+                "No USB RGB keyboard (187c:0550/0551) was found.\n\n"
+                "This section only works with the Alienware-style device; your doctor check already "
+                "warned if 187c:0550 is missing. Power and fans (other tab) use ACPI, not the keyboard USB.",
+            )
+            return
+        act = str(self.combobox_mode.currentText())
         try:
-            if self.settings.value("Action", "Static Color") == "Static Color":
+            if act == "Static Color":
                 self.apply_static()
-            elif self.settings.value("Action", "Static Color") == "Morph":
+            elif act == "Morph":
                 self.apply_morph()
-            elif self.settings.value("Action", "Static Color") == "Color and Morph":
-                self.apply_color_and_morph()    
-            else:   #Off
+            elif act == "Color and Morph":
+                self.apply_color_and_morph()
+            else:
                 self.remove_animation()
         except Exception as err:
-            QMessageBox.warning(self,"Error",f"Cannot apply LED settings:\n\n{err.__class__.__name__}: {err}")
-            raise err
+            QMessageBox.warning(
+                self,
+                "Error",
+                "Cannot apply LED settings:\n\n{}: {}".format(err.__class__.__name__, err),
+            )
 
 
     def combobox_power(self):
@@ -348,17 +568,21 @@ class MainWindow(QWidget):
         self.acpi_call("set_power_mode",mode)
         # Get current power mode to confirm
         result = self.acpi_call("get_power_mode")
-        if (result == mode):   #Expected result
+        if result is not None and _acpi_id_eq(result, mode):
             message = "Power mode set to {}.\n".format(choice)
         else:
-            message = "Error! Command returned: {}, but expecting {}.\n".format(str(result),str(mode))
+            message = "Error! Command returned: {}, but expecting {}.\n".format(str(result), str(mode))
         # Get G Mode
-        result = self.acpi_call("get_G_mode")
-        if (choice == "G Mode") != (result == "0x1"):  #Toggle G Mode if needed.
-            #Toggle G mode
+        g = self.acpi_call("get_G_mode")
+        want_g = choice == "G Mode"
+        g_on = g is not None and _acpi_id_eq(g, "0x1")
+        if want_g != g_on:
             result_toggle = self.acpi_call("toggle_G_mode")
-            if (("0x1" if choice == "G Mode" else "0x0") != result_toggle): 
-                message = message + "Expected to read G Mode = {} but read {}!\n".format(choice == "G Mode",result_toggle)
+            expect_t = "0x1" if want_g else "0x0"
+            if result_toggle is None or not _acpi_id_eq(result_toggle, expect_t):
+                message = message + "G Mode toggle: expected {} but got {} (get_G_mode was {}).\n".format(
+                    expect_t, str(result_toggle), str(g)
+                )
 
         self.info_label.setText(message)
 
@@ -372,7 +596,7 @@ class MainWindow(QWidget):
         self.acpi_call("set_fan1_boost","0x{:2X}".format(new_val))
         #Get current fan boost
         fan1_new_boost = self.acpi_call("get_fan1_boost")
-        self.info_label.setText("Fan1 Boost: {:.0f}% to {:.0f}%.".format(int(fan1_last_boost,0)/0xff*100,int(fan1_new_boost,0)/0xff*100))
+        self.info_label.setText("Fan1 Boost: {:.0f}% to {:.0f}%.".format(_int_from_acpi(fan1_last_boost)/0xff*100,_int_from_acpi(fan1_new_boost)/0xff*100))
 
 
     def slider_fan2(self):
@@ -384,7 +608,7 @@ class MainWindow(QWidget):
         self.acpi_call("set_fan2_boost","0x{:2X}".format(new_val))
         #Get current fan boost
         fan2_new_boost = self.acpi_call("get_fan2_boost")
-        self.info_label.setText("Fan2 Boost: {:.0f}% to {:.0f}%.".format(int(fan2_last_boost,0)/0xff*100,int(fan2_new_boost,0)/0xff*100))
+        self.info_label.setText("Fan2 Boost: {:.0f}% to {:.0f}%.".format(_int_from_acpi(fan2_last_boost)/0xff*100,_int_from_acpi(fan2_new_boost)/0xff*100))
 
 
     def get_rpm_and_temp(self):
@@ -394,8 +618,10 @@ class MainWindow(QWidget):
             cpu_temp = self.acpi_call("get_cpu_temp")
             fan2_rpm = self.acpi_call("get_fan2_rpm")
             gpu_temp = self.acpi_call("get_gpu_temp")
-            self.fan1_current.setText("{} RPM, {} °C".format(int(fan1_rpm,0),int(cpu_temp,0)))
-            self.fan2_current.setText("{} RPM, {} °C".format(int(fan2_rpm,0),int(gpu_temp,0)))
+            if None in (fan1_rpm, cpu_temp, fan2_rpm, gpu_temp):
+                return
+            self.fan1_current.setText("{} RPM, {} °C".format(_int_from_acpi(fan1_rpm),_int_from_acpi(cpu_temp)))
+            self.fan2_current.setText("{} RPM, {} °C".format(_int_from_acpi(fan2_rpm),_int_from_acpi(gpu_temp)))
     # Helper Functions
     
     #Execute given command in elevated shell
@@ -409,7 +635,17 @@ class MainWindow(QWidget):
             cmd_current = self.acpi_cmd.format(args[0], args[1], arg1, arg2)
         else:
             cmd_current=""
-        return self.parse_shell_exec(self.shell_exec(cmd_current)[2])   #Return parsed second line
+        result = self.shell_exec(cmd_current)
+        if len(result) < 2:
+            return None
+        out_lines = [ln for ln in result[1:] if ln.strip()]
+        if not out_lines:
+            return None
+        for line in reversed(out_lines):
+            parsed = _try_parse_acpi_line(line)
+            if parsed is not None:
+                return parsed
+        return None
 
 
     def shell_exec(self, cmd : str):
@@ -423,9 +659,8 @@ class MainWindow(QWidget):
         return result
 
 
-    def parse_shell_exec(self,line:str):
-        return line[line.find('\r')+1:line.find('\x00')] #Read between carriage return and end of the line (disregard color)
-
+    def parse_shell_exec(self, line: str):
+        return _try_parse_acpi_line(line)
 
     # Apply given colors to keyboard.
     def apply_static(self):
@@ -497,18 +732,44 @@ class TrayIcon(QSystemTrayIcon):
         self.window = window
 
     def toggle_leds(self, reason):
-        if self.settings.value("State", "Off") == "Off":
-            self.settings.setValue("State", "On")
-            self.window.tray_on()
-        else:
-            self.settings.setValue("State", "Off")
-            self.window.tray_off()
+        # Wayland: right-click opens the menu; do not also toggle
+        if reason == QSystemTrayIcon.ActivationReason.Context:
+            return
+        if reason not in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+            QSystemTrayIcon.ActivationReason.MiddleClick,
+        ):
+            return
+        if not _awelc_usb_available():
+            QMessageBox.information(
+                self.window,
+                "Keyboard LED",
+                "Tray dim/LED toggle needs the Alienware USB device (187c:0550/551).\n\n"
+                "Without it, this click does nothing useful — use Power and Fans in the main window (ACPI).",
+            )
+            return
+        try:
+            if self.settings.value("State", "Off") == "Off":
+                self.settings.setValue("State", "On")
+                self.window.tray_on()
+            else:
+                self.settings.setValue("State", "Off")
+                self.window.tray_off()
+        except Exception as err:
+            QMessageBox.warning(
+                self.window,
+                "Tray",
+                "Keyboard LED error: {}: {}".format(err.__class__.__name__, err),
+            )
 
 if __name__ == '__main__':
     # Create the Qt Application
     app = QApplication(sys.argv)
-    icon = QIcon.fromTheme("alienarena")
+    icon = _app_icon()
     app.setWindowIcon(icon)
+    if icon.isNull():
+        print("dell-g-controller: install an icon (window.png) for a visible tray; using fallback.", file=sys.stderr)
     app.setQuitOnLastWindowClosed(False)
 
     # Create and show the window
@@ -519,7 +780,7 @@ if __name__ == '__main__':
     tray = TrayIcon(window)
     tray.setIcon(icon)
     tray.setVisible(True)
-    tray.setToolTip("Right click to see the menu. Left click to toggle leds.")
+    tray.setToolTip("Dell G Series: left click toggles LED dim (needs 187c:0550); right = menu. Power/fans: open the window.")
 
     # System tray options
     menu = QMenu()

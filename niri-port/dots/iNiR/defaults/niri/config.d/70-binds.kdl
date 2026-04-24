@@ -74,7 +74,9 @@ binds {
     Super+Return allow-inhibiting=false { spawn "/home/akashbiswas/.local/bin/inir" "terminal"; }
     Super+E allow-inhibiting=false { spawn "/home/akashbiswas/.local/bin/inir" "files"; }
     Super+W allow-inhibiting=false { spawn "/home/akashbiswas/.local/bin/inir" "browser"; }
-    Super+F9 allow-inhibiting=false { spawn "/home/akashbiswas/.local/bin/dell-g-controller-launch"; }
+    // With mod-key "Super", only Mod+F9 (not also Super+F9) — duplicate Mod/Super confuses niri’s handler.
+    // bash -c: same pattern as other shell spawns; full path to the NixOS system launcher.
+    Mod+F9 allow-inhibiting=false hotkey-overlay-title="Dell G fan/power" { spawn "bash" "-c" "exec /run/current-system/sw/bin/dell-g-controller-launch"; }
 
     // ═══════════════════════════════════════════════════════════════════════
     // Window management

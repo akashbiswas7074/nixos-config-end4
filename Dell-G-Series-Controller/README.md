@@ -47,6 +47,23 @@ You can install [from the AUR](https://aur.archlinux.org/packages/dell-g15-contr
 ### Other distros
 Install the dependencies, as well as `libxcb-cursor0` if required.
 
+### NixOS
+Use the Nix-packaged PySide6 (pip wheels + `LD_LIBRARY_PATH` hacks often **segfault**):
+
+```bash
+./run-nixos.sh check    # quick import test
+./run-nixos.sh doctor   # acpi_call, polkit, pkexec, NoNewPrivs, USB (recommended before first run)
+./run-nixos.sh run
+```
+
+This uses `shell.nix` (`python313` + `pyside6` from nixpkgs). The `.venv/` from older instructions is no longer required for `run-nixos.sh`.
+
+**`dell-g-controller-launch`:** the repo file `dell-g-controller-launch` runs `run-nixos.sh`; symlink it to `~/.local/bin` if you are not on the NixOS `configuration.nix` that installs the same name into the system profile.
+
+**Super+F9 (iNiR):** the default Niri keybind spawns `dell-g-controller-launch` (PATH must include `/run/current-system/sw/bin` — iNiR’s `40-environment` does that on NixOS).
+
+**“No root access” / power tab missing:** power features need **`pkexec`** + a **polkit GUI agent**. On NixOS, rebuild with **`programs.inir.enablePolkit = true`** (or `security.polkit.enable` + a user service for `polkit-gnome-authentication-agent-1`), then re-login. Approve the polkit prompt when the app starts. Run from **Foot/Kitty**, not a stripped environment (e.g. some IDE terminals), so the auth dialog can appear. Load **`acpi_call`**: `sudo modprobe acpi_call` (your config should list it in `boot.kernelModules` — iNiR `dellGSeries` does).
+
 
 ## Usage
 ```

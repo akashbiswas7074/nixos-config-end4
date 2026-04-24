@@ -3,78 +3,127 @@ set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 REPO_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-VENV_PY="$REPO_DIR/.venv/bin/python"
+SHELL_NIX="$REPO_DIR/shell.nix"
 MODE="${1:-run}"
 
-if [[ ! -x "$VENV_PY" ]]; then
-  echo "Missing venv at $VENV_PY"
-  echo "Creating venv and installing dependencies..."
-  nix shell nixpkgs#python3 --extra-experimental-features "nix-command flakes" --command python3 -m venv "$REPO_DIR/.venv"
-  "$VENV_PY" -m pip install --upgrade pip
-  "$VENV_PY" -m pip install PySide6 pyusb pexpect
+# So pkexec / polkit GUI works when the parent strips the environment (e.g. IDE terminal).
+: "${XDG_RUNTIME_DIR:=/run/user/$(id -u)}"
+export XDG_RUNTIME_DIR
+if [[ -z "${DBUS_SESSION_BUS_ADDRESS:-}" && -S "${XDG_RUNTIME_DIR}/bus" ]]; then
+  export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
 fi
 
-nix shell nixpkgs#gcc nixpkgs#zstd --extra-experimental-features "nix-command flakes" --command bash -lc "
-  set -euo pipefail
-  cd \"$REPO_DIR\"
-  export PATH=\"/run/wrappers/bin:\$PATH\"
-  GCC_LIB_DIR=\"\$(dirname \"\$(gcc -print-file-name=libstdc++.so.6)\")\"
-  ZSTD_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#zstd.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  ZSTD_LIB_DIR=\"\$ZSTD_OUT_DIR/lib\"
-  GLIB_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#glib.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  GLIB_LIB_DIR=\"\$GLIB_OUT_DIR/lib\"
-  LIBGL_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libGL --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBGL_LIB_DIR=\"\$LIBGL_OUT_DIR/lib\"
-  WAYLAND_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#wayland.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  WAYLAND_LIB_DIR=\"\$WAYLAND_OUT_DIR/lib\"
-  LIBXKB_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxkbcommon --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXKB_LIB_DIR=\"\$LIBXKB_OUT_DIR/lib\"
-  LIBXCB_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxcb --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCB_LIB_DIR=\"\$LIBXCB_OUT_DIR/lib\"
-  LIBX11_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#xorg.libX11.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBX11_LIB_DIR=\"\$LIBX11_OUT_DIR/lib\"
-  LIBXEXT_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#xorg.libXext.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXEXT_LIB_DIR=\"\$LIBXEXT_OUT_DIR/lib\"
-  LIBXRENDER_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#xorg.libXrender.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXRENDER_LIB_DIR=\"\$LIBXRENDER_OUT_DIR/lib\"
-  LIBXCURSOR_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxcursor.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCURSOR_LIB_DIR=\"\$LIBXCURSOR_OUT_DIR/lib\"
-  LIBXCB_CURSOR_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#xcb-util-cursor --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCB_CURSOR_LIB_DIR=\"\$LIBXCB_CURSOR_OUT_DIR/lib\"
-  LIBXCB_UTIL_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxcb-util --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCB_UTIL_LIB_DIR=\"\$LIBXCB_UTIL_OUT_DIR/lib\"
-  LIBXCB_IMAGE_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxcb-image --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCB_IMAGE_LIB_DIR=\"\$LIBXCB_IMAGE_OUT_DIR/lib\"
-  LIBXCB_KEYSYMS_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxcb-keysyms --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCB_KEYSYMS_LIB_DIR=\"\$LIBXCB_KEYSYMS_OUT_DIR/lib\"
-  LIBXCB_RENDERUTIL_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxcb-render-util --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCB_RENDERUTIL_LIB_DIR=\"\$LIBXCB_RENDERUTIL_OUT_DIR/lib\"
-  LIBXCB_WM_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#libxcb-wm --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  LIBXCB_WM_LIB_DIR=\"\$LIBXCB_WM_OUT_DIR/lib\"
-  FONTCONFIG_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#fontconfig.lib --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  FONTCONFIG_LIB_DIR=\"\$FONTCONFIG_OUT_DIR/lib\"
-  FREETYPE_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#freetype.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  FREETYPE_LIB_DIR=\"\$FREETYPE_OUT_DIR/lib\"
-  EXPAT_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#expat.out --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  EXPAT_LIB_DIR=\"\$EXPAT_OUT_DIR/lib\"
-  DBUS_OUT_DIR=\"\$(nix build --no-link --print-out-paths nixpkgs#dbus.lib --extra-experimental-features 'nix-command flakes' 2>/dev/null | tail -n 1)\"
-  DBUS_LIB_DIR=\"\$DBUS_OUT_DIR/lib\"
-  BASE_LIBS=\"\${NIX_LD_LIBRARY_PATH:-}\"
-  if [[ -d /run/current-system/sw/lib ]]; then
-    BASE_LIBS=\"\${BASE_LIBS:+\$BASE_LIBS:}/run/current-system/sw/lib\"
+# Polkit must be running in this user session before pkexec can show a password window.
+if command -v systemctl >/dev/null 2>&1; then
+  if ! systemctl --user is-active --quiet polkit-gnome-authentication-agent-1 2>/dev/null; then
+    systemctl --user start polkit-gnome-authentication-agent-1 2>/dev/null || true
   fi
-  export LD_LIBRARY_PATH=\"\$GCC_LIB_DIR:\$ZSTD_LIB_DIR:\$GLIB_LIB_DIR:\$LIBGL_LIB_DIR:\$WAYLAND_LIB_DIR:\$LIBXKB_LIB_DIR:\$LIBXCB_LIB_DIR:\$LIBX11_LIB_DIR:\$LIBXEXT_LIB_DIR:\$LIBXRENDER_LIB_DIR:\$LIBXCURSOR_LIB_DIR:\$LIBXCB_CURSOR_LIB_DIR:\$LIBXCB_UTIL_LIB_DIR:\$LIBXCB_IMAGE_LIB_DIR:\$LIBXCB_KEYSYMS_LIB_DIR:\$LIBXCB_RENDERUTIL_LIB_DIR:\$LIBXCB_WM_LIB_DIR:\$FONTCONFIG_LIB_DIR:\$FREETYPE_LIB_DIR:\$EXPAT_LIB_DIR:\$DBUS_LIB_DIR\${BASE_LIBS:+:\$BASE_LIBS}\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}\"
-  if [[ -n \"\${WAYLAND_DISPLAY:-}\" ]]; then
-    export QT_QPA_PLATFORM=\"wayland\"
+  # Give the agent a moment to register with the bus (best-effort).
+  sleep 0.3
+fi
+
+if [[ ! -f "$SHELL_NIX" ]]; then
+  echo "Missing $SHELL_NIX" >&2
+  exit 1
+fi
+
+# Prefer nix develop if flake exists next to shell.nix (optional future); otherwise classic nix-shell.
+run_in_shell() {
+  if command -v nix-shell &>/dev/null; then
+    nix-shell "$SHELL_NIX" --run "$1"
   else
-    export QT_QPA_PLATFORM=\"xcb\"
+    echo "nix-shell not found" >&2
+    exit 1
   fi
-  export QT_STYLE_OVERRIDE=\"Fusion\"
-  if [[ \"$MODE\" == \"check\" ]]; then
-    \"$VENV_PY\" -c 'import PySide6, usb, pexpect; print(\"Dell controller runtime OK\")'
-  elif [[ \"$MODE\" == \"debug-ldd\" ]]; then
-    ldd \"$REPO_DIR/.venv/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms/libqxcb.so\" | awk '/not found/'
-  else
-    \"$VENV_PY\" main.py
-  fi
-"
+}
+
+ok() { echo "  OK: $*"; }
+warn() { echo "  !! $*" >&2; }
+fail() { echo "  NO: $*" >&2; }
+
+case "$MODE" in
+  check)
+    run_in_shell 'python3 -c "import PySide6, usb, pexpect; print(\"Dell controller runtime OK\")"'
+    ;;
+  doctor)
+    echo "Dell G Series Controller — prerequisite check"
+    echo ""
+    echo "1) Nix PySide6 runtime"
+    if run_in_shell 'python3 -c "import PySide6, usb, pexpect"'; then
+      ok "python imports"
+    else
+      fail "import failed — run: $0 check"
+    fi
+    echo ""
+    echo "2) acpi_call (power/fan ACPI path)"
+    if [[ -e /proc/acpi/call ]]; then
+      ok "/proc/acpi/call present"
+    else
+      fail "/proc/acpi/call missing — run: sudo modprobe acpi_call"
+    fi
+    if [[ -r /proc/modules ]] && grep -q '^acpi_call[[:space:]]' /proc/modules 2>/dev/null; then
+      ok "acpi_call module loaded"
+    else
+      warn "acpi_call not in lsmod (optional if you only need keyboard RGB)"
+    fi
+    echo ""
+    echo "3) Polkit (pkexec must show a password dialog on startup)"
+    if [[ -x /run/wrappers/bin/pkexec ]]; then
+      ok "pkexec at /run/wrappers/bin/pkexec"
+    elif command -v pkexec >/dev/null 2>&1; then
+      ok "pkexec: $(command -v pkexec)"
+    else
+      fail "pkexec not found"
+    fi
+    if pgrep -x polkitd >/dev/null 2>&1; then
+      ok "polkitd running"
+    else
+      warn "polkitd not running — enable security.polkit on NixOS"
+    fi
+    if systemctl --user is-active --quiet polkit-gnome-authentication-agent-1 2>/dev/null; then
+      ok "polkit-gnome user agent active"
+    else
+      warn "polkit-gnome agent not running — we try to start it in run; log in to a graphical session"
+    fi
+    echo ""
+    echo "4) Privilege / sandbox (sudo/pkexec need a normal desktop terminal)"
+    if [[ -r /proc/self/status ]]; then
+      nnp=$(awk '/^NoNewPrivs:/ {print $2}' /proc/self/status 2>/dev/null || true)
+      if [[ "$nnp" == "1" ]]; then
+        warn "this shell has NoNewPrivs=1 — use Foot/Kitty, not a locked-down IDE terminal"
+      elif [[ -n "$nnp" ]]; then
+        ok "NoNewPrivs=$nnp"
+      fi
+    fi
+    echo ""
+    echo "5) USB keyboard LED (awelc), optional"
+    if [[ -e /dev/awelc ]] || (command -v lsusb >/dev/null 2>&1 && lsusb -d 187c:0550 2>/dev/null | grep -q .); then
+      ok "Dell/Alienware LED device looks present"
+    else
+      warn "187c:0550 not seen — iNiR udev (dellGSeries) or cable"
+    fi
+    echo ""
+    echo "6) App log"
+    ok "after run:  tail -50 /tmp/dell-g-series-controller.log"
+    echo "Done."
+    ;;
+  debug-ldd)
+    run_in_shell "python3 -c \"
+import os, glob
+from pathlib import Path
+import PySide6
+root = Path(PySide6.__file__).parent
+cands = list(root.glob('Qt/plugins/platforms/libq*.so'))
+print('plugins:', cands)
+for so in cands[:1]:
+    os.system('ldd ' + str(so) + ' | awk \\\"/not found/\\\"')
+\""
+    ;;
+  run)
+    run_in_shell "cd \"$REPO_DIR\" && python3 main.py"
+    ;;
+  *)
+    echo "Usage: $0 [run|check|doctor|debug-ldd]" >&2
+    exit 2
+    ;;
+esac
