@@ -1,68 +1,34 @@
-{ config, pkgs, ... }:
+{ config, pkgs, ... } @ args:
 
 let
-  inirFlake = builtins.getFlake (toString ../.);
-  # --- CURSOR DEB PACKAGE DEFINITION ---
-  cursor-deb = pkgs.stdenv.mkDerivation rec {
+  # Flake: passed via specialArgs from flake.nix. Legacy: resolve parent iNiR flake.
+  inirFlake = args.inirFlake or (builtins.getFlake (toString ../.));
+  # --- CURSOR APPIMAGE DEFINITION ---
+  cursor-appimage = pkgs.appimageTools.wrapType2 {
     pname = "cursor";
-    version = "3.1.17";
+    version = "3.2.11";
+    src = /home/akashbiswas/Desktop/control/Download/Cursor-3.2.11-x86_64.AppImage;
+    extraPkgs = pkgs: with pkgs; [ libsecret ];
+  };
+
+  # --- ANTIGRAVITY BINARY DEFINITION ---
+  antigravity-bin = pkgs.stdenv.mkDerivation rec {
+    pname = "antigravity";
+    version = "current";
+    src = /home/akashbiswas/Desktop/control/Download/Antigravity.tar.gz;
     
-    src = /home/akashbiswas/Downloads/cursor_3.1.17_amd64.deb; 
-
-    nativeBuildInputs = [ 
-      pkgs.dpkg 
-      pkgs.autoPatchelfHook 
-      pkgs.makeWrapper
-    ];
-
+    nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper ];
+    
     buildInputs = with pkgs; [
-      glibc
-      nss
-      nspr
-      atk
-      at-spi2-atk
-      libdrm
-      mesa
-      gtk3
-      pango
-      cairo
-      alsa-lib
-      libsecret      # Added for credential storage
-      libxkbcommon
-      xorg.libX11
-      xorg.libXcomposite
-      xorg.libXdamage
-      xorg.libXext
-      xorg.libXfixes
-      xorg.libXrandr
-      xorg.libxkbfile  # FIXED: Added to resolve libxkbfile.so.1 error
-      libgbm
-      systemd
+      at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL xorg.libX11 xorg.libXcomposite xorg.libXcursor xorg.libXdamage xorg.libXext xorg.libXfixes xorg.libXi xorg.libXrandr xorg.libXrender xorg.libXtst libdrm libgbm libnotify libsecret libuuid xorg.libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 xorg.libxkbfile webkitgtk_4_1
     ];
-
-    unpackPhase = ''
-      dpkg-deb --fsys-tarfile $src | tar x --no-same-permissions --no-same-owner
-    '';
-
+    
     installPhase = ''
-      mkdir -p $out/bin $out/share/cursor
-      
-      # Automatically find the directory containing the 'cursor' binary
-      APP_DIR=$(find . -type f -name "cursor" -printf '%h' -quit)
-      
-      if [ -n "$APP_DIR" ]; then
-        cp -r $APP_DIR/* $out/share/cursor/
-      else
-        echo "Could not find cursor binary in the unpacked deb!"
-        exit 1
-      fi
-      
-      if [ -d "usr/share/icons" ]; then
-        cp -r usr/share/icons $out/share/
-      fi
-      
-      chmod +x $out/share/cursor/cursor
-      ln -s $out/share/cursor/cursor $out/bin/cursor
+      mkdir -p $out/bin $out/opt/antigravity
+      cp -r . $out/opt/antigravity/
+      chmod +x $out/opt/antigravity/antigravity
+      makeWrapper $out/opt/antigravity/antigravity $out/bin/antigravity \
+        --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath buildInputs}
     '';
   };
 in
@@ -135,11 +101,11 @@ in
 
   environment.systemPackages = with pkgs; [
     polkit_gnome
-    cursor-deb
+    cursor-appimage
     vim
     wget
     git
-    antigravity
+    antigravity-bin
     vscode
     # code-cursor
     google-chrome

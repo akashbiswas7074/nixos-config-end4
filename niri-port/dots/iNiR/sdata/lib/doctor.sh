@@ -321,7 +321,7 @@ check_python_packages() {
     
     # Check for broken venv (e.g. after python update)
     if [[ -d "$venv/bin" ]]; then
-        if ! "$venvpython" --version &>/dev/null; then
+        if ! "$venv/bin/python3" --version &>/dev/null; then
             doctor_fail "Broken Python venv detected"
             rm -rf "$venv"
         fi

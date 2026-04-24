@@ -242,7 +242,7 @@ install-python-packages(){
 
   # Check for broken venv (e.g. after python update)
   if [[ -d "$venv_dir/bin" ]]; then
-    if ! "$venv_dirpython" --version &>/dev/null; then
+    if ! "$venv_dir/bin/python3" --version &>/dev/null; then
       log_warning "Broken Python venv detected, recreating..."
       rm -rf "$venv_dir"
     fi

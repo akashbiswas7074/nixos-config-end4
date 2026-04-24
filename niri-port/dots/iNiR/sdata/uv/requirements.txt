@@ -1,5 +1,6 @@
 # Python dependencies for illogical-impulse on Niri
 # Install with: uv pip install -r requirements.txt
+# Nix (Home Manager): same set is declared in niri-port/inir-quickshell-python.nix → ~/.local/state/quickshell/.venv
 
 pillow>=10.0.0
 opencv-contrib-python>=4.8.0

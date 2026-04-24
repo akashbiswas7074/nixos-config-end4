@@ -673,6 +673,20 @@ fi
 #####################################################################################
 # Apply required migrations automatically
 #####################################################################################
+# Home Manager (and similar) symlink ~/.config/niri/config.kdl into /nix/store; those
+# paths are read-only, so migrations that rewrite config.kdl would fail.
+if [[ ! -v SKIP_MIGRATIONS ]]; then
+  _inir_niri_kdl="${XDG_CONFIG_HOME}/niri/config.kdl"
+  if [[ -L "$_inir_niri_kdl" ]]; then
+    _inir_niri_target="$(readlink "$_inir_niri_kdl" || true)"
+    if [[ "$_inir_niri_target" == /nix/store/* ]]; then
+      SKIP_MIGRATIONS=true
+      tui_info "Niri config.kdl is Nix-managed (read-only); skipping migrations that modify it. Set SKIP_MIGRATIONS=false to force (will likely fail until you stop managing that file via Nix)."
+    fi
+  fi
+  unset _inir_niri_kdl _inir_niri_target
+fi
+
 if [[ "${SKIP_MIGRATIONS}" != "true" ]]; then
   run_migrations_auto
 fi

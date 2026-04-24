@@ -198,14 +198,15 @@
               pkgs.go
               pkgs.hyprpicker
               self.packages.${pkgs.system}."awww-compat"
-              pkgs.swww
               pkgs.uv
               pkgs.starship
               pkgs.eza
+              pkgs.quickshell
               pkgs.kdePackages.kdialog
               pkgs.kdePackages.kirigami.unwrapped
               pkgs.kdePackages.plasma-integration
               pkgs.kdePackages.syntax-highlighting
+              pkgs.kdePackages.qt5compat
               pkgs.kdePackages.qtmultimedia
               pkgs.polkit_gnome
               pkgs.jetbrains-mono
@@ -275,7 +276,6 @@
                 cfg.package
                 go
                 hyprpicker
-                swww
                 uv
                 starship
                 eza
