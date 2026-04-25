@@ -46,11 +46,18 @@
               # If activation fails on “would be clobbered”, run once:
               #   home-manager switch -b backup --flake "<this-repo>#akashbiswas"
               # (This HM revision has no home.backupFileExtension; use -b backup when needed.)
-              # NixOS setuid binaries (sudo, etc.) live here — must be before /run/current-system/sw/bin in PATH
-              home.sessionPath = [ "/run/wrappers/bin" ];
+              # NixOS setuid binaries (sudo, etc.) live in /run/wrappers/bin and must come first.
+              # Apply shell path ordering globally (fish/bash/zsh) without taking ownership of fish config.
+              home.sessionPath = [
+                "/run/wrappers/bin"
+                "${config.home.homeDirectory}/.nix-profile/bin"
+                "/run/current-system/sw/bin"
+                "/etc/profiles/per-user/${config.home.username}/bin"
+              ];
               home.packages = with pkgsx; [
                 jq
                 fish
+                neovim
                 imagemagick
                 grim
                 cliphist
@@ -82,6 +89,12 @@
                 ExecStart=%h/.nix-profile/bin/inir run --session
                 ExecStopPost=
                 ExecStopPost=-%h/.nix-profile/bin/inir cleanup-orphans
+              '';
+              # Some terminals (notably IDE-integrated ones) set no_new_privs=1 on child processes.
+              # Explicitly disable this for the user service so privileged helpers can still function.
+              home.file.".config/systemd/user/inir.service.d/61-no-new-privileges.conf".text = ''
+                [Service]
+                NoNewPrivileges=false
               '';
 
               programs.inir = {
