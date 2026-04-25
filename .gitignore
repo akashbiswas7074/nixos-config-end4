@@ -9,3 +9,4 @@ __pycache__/
 # nix-build / nixos-rebuild output links
 result
 **/result
+*.AppImage

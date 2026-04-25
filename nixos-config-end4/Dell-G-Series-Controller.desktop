@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Dell G Series Controller
-Comment=Launch Dell G Series Controller on NixOS
-Exec=kitty -e /run/current-system/sw/bin/bash -lc '/home/akashbiswas/.local/bin/dell-g-controller-launch; code=$?; if [ $code -ne 0 ]; then echo; echo "Launch failed (exit $code). Log: ~/.cache/dell-g-controller.log"; read -r -p "Press Enter to close..."; fi'
-Icon=utilities-terminal
-Terminal=false
-Categories=System;Settings;
-StartupNotify=true

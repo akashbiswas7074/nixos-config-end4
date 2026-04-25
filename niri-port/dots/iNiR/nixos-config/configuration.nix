@@ -44,12 +44,25 @@ let
   # (or your versions’ names) so the flake can see them. Otherwise skip these packages.
   localCursor = ./local/Cursor-3.2.11-x86_64.AppImage;
   localAntigrav = ./local/Antigravity.tar.gz;
-  customApps = lib.optionals (builtins.pathExists localCursor) [
+  customApps = let
+    appimageContents = if builtins.pathExists localCursor then pkgs.appimageTools.extractType2 {
+      pname = "cursor";
+      version = "3.2.11";
+      src = localCursor;
+    } else null;
+  in lib.optionals (builtins.pathExists localCursor) [
     (pkgs.appimageTools.wrapType2 {
       pname = "cursor";
       version = "3.2.11";
       src = localCursor;
       extraPkgs = p: with p; [ libsecret ];
+      extraInstallCommands = ''
+        install -m 444 -D ${appimageContents}/cursor.desktop -t $out/share/applications
+        substituteInPlace $out/share/applications/cursor.desktop \
+          --replace 'Exec=AppRun' 'Exec=cursor' \
+          --replace 'Exec=cursor %F' 'Exec=cursor' || true
+        cp -r ${appimageContents}/usr/share/icons $out/share
+      '';
     })
   ] ++ lib.optionals (builtins.pathExists localAntigrav) [
     (pkgs.stdenv.mkDerivation rec {

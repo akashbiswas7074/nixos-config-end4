@@ -58,6 +58,8 @@
                 jq
                 fish
                 neovim
+                unzip
+                (python3.withPackages (ps: with ps; [ pynvim jupyter-client ipykernel nbformat pyperclip plotly cairosvg pnglatex ]))
                 imagemagick
                 grim
                 cliphist
@@ -79,6 +81,9 @@
               home.file.".config/matugen/config.toml".force = true;
               home.file.".config/matugen/templates.json".force = true;
               home.file.".config/matugen/templates/terminals/foot.ini".force = true;
+
+              # Link AstroNvim configuration from dotfiles
+              home.file.".config/nvim".source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/Desktop/control/nixos-config-end4/AstroNvim";
 
               # ~/.local/bin/inir is the raw script (no Nix PATH); systemd then fails with "qs not found".
               # Use the HM-installed wrapped binary (same as `inir` from programs.inir).

@@ -136,7 +136,18 @@ Singleton {
             monitor.ready = false;
             initProc.command = isDdc
                 ? ["bash", "-c", Config.subprocessPathShExport() + `exec ddcutil -b '${busNum}' getvcp 10 --brief`]
-                : ["bash", "-c", Config.subprocessPathShExport() + `echo "a b c $(brightnessctl g) $(brightnessctl m)"`];
+                : ["bash", "-c", Config.subprocessPathShExport()
+                    + `USER_NAME="$(id -un)"; `
+                    + `HOME_DIR="\${HOME:-$(getent passwd "$USER_NAME" | cut -d: -f6)}"; `
+                    + `BR_BIN="$(command -v brightnessctl 2>/dev/null || true)"; `
+                    + `[ -n "$BR_BIN" ] || BR_BIN="$HOME_DIR/.nix-profile/bin/brightnessctl"; `
+                    + `[ -x "$BR_BIN" ] || BR_BIN="/etc/profiles/per-user/$USER_NAME/bin/brightnessctl"; `
+                    + `[ -x "$BR_BIN" ] || BR_BIN="/run/current-system/sw/bin/brightnessctl"; `
+                    + `[ -x "$BR_BIN" ] || BR_BIN="/run/wrappers/bin/brightnessctl"; `
+                    + `if [ ! -x "$BR_BIN" ]; then echo "a b c"; echo "[Brightness] brightnessctl not found in service PATH=$PATH" >&2; `
+                    + `else CUR="$("$BR_BIN" g 2>&1)"; MAX="$("$BR_BIN" m 2>&1)"; `
+                    + `if [[ "$CUR" =~ ^[0-9]+$ && "$MAX" =~ ^[0-9]+$ ]]; then echo "a b c $CUR $MAX"; `
+                    + `else echo "a b c"; echo "[Brightness] brightnessctl read failed bin=$BR_BIN current='$CUR' max='$MAX'" >&2; fi; fi`];
             initProc.running = true;
         }
 
@@ -179,7 +190,16 @@ Singleton {
             const rawValueRounded = Math.max(Math.floor(brightnessValue * monitor.rawMaxBrightness), 1);
             setProc.command = isDdc
                 ? ["bash", "-c", Config.subprocessPathShExport() + `exec ddcutil -b '${busNum}' setvcp 10 '${rawValueRounded}'`]
-                : ["bash", "-c", Config.subprocessPathShExport() + `exec brightnessctl --class backlight s '${rawValueRounded}' --quiet`];
+                : ["bash", "-c", Config.subprocessPathShExport()
+                    + `USER_NAME="$(id -un)"; `
+                    + `HOME_DIR="\${HOME:-$(getent passwd "$USER_NAME" | cut -d: -f6)}"; `
+                    + `BR_BIN="$(command -v brightnessctl 2>/dev/null || true)"; `
+                    + `[ -n "$BR_BIN" ] || BR_BIN="$HOME_DIR/.nix-profile/bin/brightnessctl"; `
+                    + `[ -x "$BR_BIN" ] || BR_BIN="/etc/profiles/per-user/$USER_NAME/bin/brightnessctl"; `
+                    + `[ -x "$BR_BIN" ] || BR_BIN="/run/current-system/sw/bin/brightnessctl"; `
+                    + `[ -x "$BR_BIN" ] || BR_BIN="/run/wrappers/bin/brightnessctl"; `
+                    + `if [ -x "$BR_BIN" ]; then exec "$BR_BIN" --class backlight s '${rawValueRounded}' --quiet; `
+                    + `else echo "[Brightness] brightnessctl not found for set PATH=$PATH" >&2; exit 1; fi`];
             setProc.startDetached();
         }
 

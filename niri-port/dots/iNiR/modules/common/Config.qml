@@ -84,11 +84,18 @@ Singleton {
     readonly property string nixosSystemProfileBin: "/run/current-system/sw/bin"
     // Optional merge if you use only command names: environment: ({ PATH: Config.subprocessPath() })
     function subprocessPath() {
-        const cur = Quickshell.env("PATH") ?? "";
+        const curRaw = Quickshell.env("PATH") ?? "";
         const home = Quickshell.env("HOME") ?? "";
         const user = Quickshell.env("USER") ?? "";
         const nixProfileBin = home.length > 0 ? `${home}/.nix-profile/bin` : "";
         const perUserBin = user.length > 0 ? `/etc/profiles/per-user/${user}/bin` : "";
+        // Some launch contexts provide literal "$HOME"/"$USER" entries in PATH.
+        // Normalize them to concrete absolute paths before path checks.
+        const cur = curRaw
+            .replace(/\$\{HOME\}/g, home)
+            .replace(/\$HOME/g, home)
+            .replace(/\$\{USER\}/g, user)
+            .replace(/\$USER/g, user);
         let need = "/bin:/run/wrappers/bin:/run/current-system/sw/bin";
         if (perUserBin.length > 0 && need.indexOf(perUserBin) < 0)
             need = `${need}:${perUserBin}`;
@@ -99,8 +106,10 @@ Singleton {
         let out = cur;
         if (out.indexOf("current-system/sw/bin") < 0)
             out = `${need}:${out}`;
-        else if (nixProfileBin.length > 0 && out.indexOf(".nix-profile/bin") < 0)
+        else if (nixProfileBin.length > 0 && out.indexOf(nixProfileBin) < 0)
             out = `${nixProfileBin}:${out}`;
+        if (perUserBin.length > 0 && out.indexOf(perUserBin) < 0)
+            out = `${out}:${perUserBin}`;
         return out;
     }
 
