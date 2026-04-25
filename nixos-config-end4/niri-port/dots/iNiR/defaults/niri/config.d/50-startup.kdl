@@ -1,0 +1,30 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// 50 — Processes spawned at login
+// ─────────────────────────────────────────────────────────────────────────────
+// Each line runs once when Niri starts. For daemons that support it,
+// xdg-desktop-autostart (systemd) is an alternative.
+//
+// Tip: use spawn-sh-at-startup for shell pipelines or variable expansion.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Export XDG_MENU_PREFIX into the systemd user session and rebuild the
+// sycoca database so KDE/Qt apps see the correct .desktop entries.
+spawn-at-startup "bash" "-c" "systemctl --user import-environment XDG_MENU_PREFIX && kbuildsycoca6"
+
+// Clipboard history: wl-paste watches the clipboard and cliphist stores it.
+// Using type-specific watchers prevents duplicate entries (browsers offer both
+// text/html and text/plain — without --type, cliphist stores both).
+// Access via iNiR's clipboard overlay (Mod+V).
+spawn-at-startup "bash" "-c" "wl-paste --type text --watch cliphist store &"
+spawn-at-startup "bash" "-c" "wl-paste --type image --watch cliphist store &"
+
+// Polkit authentication agent — needed for GUI sudo prompts (software install,
+// disk mount, etc.). Use a resilient launcher for NixOS and mixed setups.
+spawn-at-startup "bash" "-lc" "for agent in \"$HOME/.nix-profile/libexec/polkit-gnome-authentication-agent-1\" /run/current-system/sw/libexec/polkit-gnome-authentication-agent-1 /usr/lib/mate-polkit/polkit-mate-authentication-agent-1 /run/current-system/sw/bin/lxqt-policykit-agent /run/current-system/sw/bin/lxpolkit; do [[ -x \"$agent\" ]] && exec \"$agent\"; done; agent=$(ls -1 /nix/store/*-polkit-gnome-*/libexec/polkit-gnome-authentication-agent-1 2>/dev/null | tail -n 1); [[ -n \"$agent\" ]] && exec \"$agent\"; command -v lxqt-policykit-agent >/dev/null 2>&1 && exec lxqt-policykit-agent; command -v lxpolkit >/dev/null 2>&1 && exec lxpolkit; exit 0"
+
+// ── iNiR shell ──────────────────────────────────────────────────────────────
+// iNiR is managed by the user systemd service (inir.service).
+// Keep a fallback startup hook so reboot/login still starts the shell even if
+// service wiring was lost (common after partial setup/migration).
+// `systemctl start` is idempotent, so this does not create duplicate shells.
+spawn-at-startup "bash" "-lc" "systemctl --user start inir.service >/dev/null 2>&1 || $HOME/.local/bin/inir run --session"

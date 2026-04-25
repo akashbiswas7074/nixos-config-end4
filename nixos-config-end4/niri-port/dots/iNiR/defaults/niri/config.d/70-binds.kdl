@@ -1,0 +1,275 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// 70 — Key bindings
+// ─────────────────────────────────────────────────────────────────────────────
+// Docs: https://niri-wm.github.io/niri/Configuration:-Key-Bindings
+//
+// "Mod" = Super on bare metal, Alt inside a nested Niri window.
+// Use `wev` to discover XKB key names.
+// Most actions here can also be triggered via `niri msg action <name>`.
+//
+// iNiR: use `inir <target> <fn>` (not `inir ipc call …`). Every bind uses
+// allow-inhibiting=false so shortcuts still work when apps request shortcut inhibit.
+// ─────────────────────────────────────────────────────────────────────────────
+
+binds {
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Session & compositor
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Niri's built-in overview (zoomed-out workspace view).
+    Mod+Tab repeat=false allow-inhibiting=false { toggle-overview; }
+
+    // Quit Niri (shows confirmation dialog).
+    Mod+Shift+E allow-inhibiting=false { quit; }
+
+    // Escape hatch: re-enable keybinds if an app inhibits them (e.g. RDP client).
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+
+    // Power off all monitors. Any input wakes them up.
+    Mod+Shift+O allow-inhibiting=false { power-off-monitors; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // iNiR shell overlays & tools
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Alt-Tab window switcher (iNiR's animated switcher).
+    Alt+Tab allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "altSwitcher" "next"; }
+    Alt+Shift+Tab allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "altSwitcher" "previous"; }
+
+    // Crosshair overlay toggle.
+    Super+G allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "overlay" "toggle"; }
+
+    // iNiR app launcher / overview.
+    Mod+Space repeat=false allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "overview" "toggle"; }
+
+    // Clipboard history overlay.
+    Mod+V allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "clipboard" "toggle"; }
+
+    // Lock screen.
+    Mod+Alt+L allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "lock" "activate"; }
+
+    // Region selector: screenshot / OCR / Google Lens search.
+    Mod+Shift+S allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "region" "screenshot"; }
+    Super+Shift+S allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "region" "screenshot"; }
+    Mod+Shift+X allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "region" "ocr"; }
+    Mod+Shift+A allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "region" "search"; }
+
+    // Wallpaper picker, settings, cheatsheet, panel family switch.
+    Ctrl+Alt+T allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "wallpaperSelector" "toggle"; }
+    Mod+Comma allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "settings" "open"; }
+    Mod+Slash allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "cheatsheet" "toggle"; }
+    Mod+Shift+W allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "panelFamily" "cycle"; }
+
+    // Session / power dialog.
+    Mod+Shift+Q allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "session" "toggle"; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // App launchers
+    // ═══════════════════════════════════════════════════════════════════════
+
+    Mod+T allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "terminal"; }
+    Mod+Return allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "terminal"; }
+    Super+T allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "terminal"; }
+    Super+Return allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "terminal"; }
+    Super+E allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "files"; }
+    Super+W allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "browser"; }
+    // With mod-key "Super", only Mod+F9 (not also Super+F9) — duplicate Mod/Super confuses niri’s handler.
+    // bash -c: same pattern as other shell spawns; full path to the NixOS system launcher.
+    Mod+F9 allow-inhibiting=false hotkey-overlay-title="Dell G fan/power" { spawn "bash" "-c" "exec /run/current-system/sw/bin/dell-g-controller-launch"; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Window management
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Close window (iNiR's close with confirmation dialog for unsaved work).
+    Mod+Q repeat=false allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "close-window"; }
+
+    // Maximize column (fills screen width, keeps gaps/bar).
+    Mod+D allow-inhibiting=false { maximize-column; }
+
+    // Maximize window to screen edges (no gaps, like traditional maximize).
+    // Mod+M { maximize-window-to-edges; }
+
+    // Fullscreen (app goes borderless edge-to-edge).
+    Mod+F allow-inhibiting=false { fullscreen-window; }
+
+    // Toggle floating / tiling.
+    Mod+A allow-inhibiting=false { toggle-window-floating; }
+
+    // Switch focus between tiling and floating layers.
+    Mod+Shift+V allow-inhibiting=false { switch-focus-between-floating-and-tiling; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Column layout (Niri's scrolling-tiler model)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Cycle through preset column widths (1/3 → 1/2 → 2/3, set in layout).
+    Mod+R allow-inhibiting=false { switch-preset-column-width; }
+
+    // Cycle through preset window heights (within a stacked column).
+    Mod+Shift+R allow-inhibiting=false { switch-preset-window-height; }
+
+    // Reset window height to default.
+    Mod+Ctrl+R allow-inhibiting=false { reset-window-height; }
+
+    // Center the focused column on screen.
+    Mod+C allow-inhibiting=false { center-column; }
+
+    // Center all fully visible columns.
+    // Mod+Ctrl+C { center-visible-columns; }
+
+    // Expand column to fill space not used by other visible columns.
+    // Mod+Ctrl+F { expand-column-to-available-width; }
+
+    // Fine-grained width/height adjustment (±10% of screen).
+    Mod+Minus allow-inhibiting=false { set-column-width "-10%"; }
+    Mod+Equal allow-inhibiting=false { set-column-width "+10%"; }
+    Mod+Shift+Minus allow-inhibiting=false { set-window-height "-10%"; }
+    Mod+Shift+Equal allow-inhibiting=false { set-window-height "+10%"; }
+
+    // Consume the window to the right into the focused column (stack vertically),
+    // or expel the bottom window from the column to its own column.
+    Mod+BracketLeft  allow-inhibiting=false { consume-or-expel-window-left; }
+    Mod+BracketRight allow-inhibiting=false { consume-or-expel-window-right; }
+
+    // Toggle tabbed display for the focused column.
+    // Windows show as vertical tabs instead of stacked.
+    // NOTE: Mod+W conflicts with Super+W (browser). Uncomment with a different key if desired.
+    // Mod+W { toggle-column-tabbed-display; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Focus navigation (arrows + Vim keys)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    Mod+Left  allow-inhibiting=false { focus-column-left; }
+    Mod+Right allow-inhibiting=false { focus-column-right; }
+    Mod+Up    allow-inhibiting=false { focus-window-up; }
+    Mod+Down  allow-inhibiting=false { focus-window-down; }
+    Mod+H     allow-inhibiting=false { focus-column-left; }
+    Mod+J     allow-inhibiting=false { focus-window-down; }
+    Mod+K     allow-inhibiting=false { focus-window-up; }
+    Mod+L     allow-inhibiting=false { focus-column-right; }
+
+    // Jump to first / last column.
+    Mod+Home allow-inhibiting=false { focus-column-first; }
+    Mod+End  allow-inhibiting=false { focus-column-last; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Move windows (arrows + Vim keys)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    Mod+Shift+Left  allow-inhibiting=false { move-column-left; }
+    Mod+Shift+Right allow-inhibiting=false { move-column-right; }
+    Mod+Shift+Up    allow-inhibiting=false { move-window-up; }
+    Mod+Shift+Down  allow-inhibiting=false { move-window-down; }
+    Mod+Shift+H     allow-inhibiting=false { move-column-left; }
+    Mod+Shift+J     allow-inhibiting=false { move-window-down; }
+    Mod+Shift+K     allow-inhibiting=false { move-window-up; }
+    Mod+Shift+L     allow-inhibiting=false { move-column-right; }
+
+    // Move column to first / last position.
+    Mod+Ctrl+Home allow-inhibiting=false { move-column-to-first; }
+    Mod+Ctrl+End  allow-inhibiting=false { move-column-to-last; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Multi-monitor
+    // ═══════════════════════════════════════════════════════════════════════
+    // Focus the monitor in the given direction.
+    Mod+Ctrl+Left  allow-inhibiting=false { focus-monitor-left; }
+    Mod+Ctrl+Right allow-inhibiting=false { focus-monitor-right; }
+    Mod+Ctrl+Up    allow-inhibiting=false { focus-monitor-up; }
+    Mod+Ctrl+Down  allow-inhibiting=false { focus-monitor-down; }
+
+    // Move the focused column to the monitor in the given direction.
+    Mod+Ctrl+Shift+Left  allow-inhibiting=false { move-column-to-monitor-left; }
+    Mod+Ctrl+Shift+Right allow-inhibiting=false { move-column-to-monitor-right; }
+    Mod+Ctrl+Shift+Up    allow-inhibiting=false { move-column-to-monitor-up; }
+    Mod+Ctrl+Shift+Down  allow-inhibiting=false { move-column-to-monitor-down; }
+
+    // Move entire workspace to another monitor:
+    // Mod+Ctrl+Shift+Left { move-workspace-to-monitor-left; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Workspaces
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Focus workspace by index.
+    Mod+1 allow-inhibiting=false { focus-workspace 1; }
+    Mod+2 allow-inhibiting=false { focus-workspace 2; }
+    Mod+3 allow-inhibiting=false { focus-workspace 3; }
+    Mod+4 allow-inhibiting=false { focus-workspace 4; }
+    Mod+5 allow-inhibiting=false { focus-workspace 5; }
+    Mod+6 allow-inhibiting=false { focus-workspace 6; }
+    Mod+7 allow-inhibiting=false { focus-workspace 7; }
+    Mod+8 allow-inhibiting=false { focus-workspace 8; }
+    Mod+9 allow-inhibiting=false { focus-workspace 9; }
+
+    // Move focused column to workspace by index.
+    Mod+Ctrl+1 allow-inhibiting=false { move-column-to-workspace 1; }
+    Mod+Ctrl+2 allow-inhibiting=false { move-column-to-workspace 2; }
+    Mod+Ctrl+3 allow-inhibiting=false { move-column-to-workspace 3; }
+    Mod+Ctrl+4 allow-inhibiting=false { move-column-to-workspace 4; }
+    Mod+Ctrl+5 allow-inhibiting=false { move-column-to-workspace 5; }
+    Mod+Ctrl+6 allow-inhibiting=false { move-column-to-workspace 6; }
+    Mod+Ctrl+7 allow-inhibiting=false { move-column-to-workspace 7; }
+    Mod+Ctrl+8 allow-inhibiting=false { move-column-to-workspace 8; }
+    Mod+Ctrl+9 allow-inhibiting=false { move-column-to-workspace 9; }
+
+    // Navigate workspaces sequentially (useful with dynamic workspaces).
+    Mod+Page_Down allow-inhibiting=false { focus-workspace-down; }
+    Mod+Page_Up   allow-inhibiting=false { focus-workspace-up; }
+    Mod+Ctrl+Page_Down allow-inhibiting=false { move-column-to-workspace-down; }
+    Mod+Ctrl+Page_Up   allow-inhibiting=false { move-column-to-workspace-up; }
+
+    // Reorder workspaces.
+    // Mod+Shift+Page_Down { move-workspace-down; }
+    // Mod+Shift+Page_Up   { move-workspace-up; }
+
+    // Mouse wheel workspace navigation (rate-limited to avoid flying through).
+    Mod+WheelScrollDown      cooldown-ms=150 allow-inhibiting=false { focus-workspace-down; }
+    Mod+WheelScrollUp        cooldown-ms=150 allow-inhibiting=false { focus-workspace-up; }
+    Mod+Ctrl+WheelScrollDown cooldown-ms=150 allow-inhibiting=false { move-column-to-workspace-down; }
+    Mod+Ctrl+WheelScrollUp   cooldown-ms=150 allow-inhibiting=false { move-column-to-workspace-up; }
+
+    // Mouse wheel column navigation.
+    Mod+WheelScrollRight allow-inhibiting=false { focus-column-right; }
+    Mod+WheelScrollLeft  allow-inhibiting=false { focus-column-left; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Screenshots (Niri native — iNiR has its own region selector above)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    Print      allow-inhibiting=false { screenshot; }
+    Ctrl+Print allow-inhibiting=false { screenshot-screen; }
+    Alt+Print  allow-inhibiting=false { screenshot-window; }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // Hardware keys → iNiR IPC (with OSD feedback)
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Volume (routed through iNiR for OSD + EasyEffects-aware sink resolution).
+    XF86AudioRaiseVolume allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "audio" "volumeUp"; }
+    XF86AudioLowerVolume allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "audio" "volumeDown"; }
+    XF86AudioMute        allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "audio" "mute"; }
+    XF86AudioMicMute     allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "audio" "micMute"; }
+
+    // Brightness.
+    XF86MonBrightnessUp   allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "brightness" "increment"; }
+    XF86MonBrightnessDown allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "brightness" "decrement"; }
+
+    // Media playback (MPRIS — works with any player: Spotify, Firefox, mpv…).
+    XF86AudioPlay  allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "playPause"; }
+    XF86AudioPause allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "playPause"; }
+    XF86AudioNext  allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "next"; }
+    XF86AudioPrev  allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "previous"; }
+
+    // Keyboard shortcuts for media (when no media keys are available).
+    Ctrl+Mod+Space allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "playPause"; }
+    Mod+Alt+N      allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "next"; }
+    Mod+Alt+P      allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "previous"; }
+    Mod+Shift+M    allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "audio" "mute"; }
+    Mod+Shift+P    allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "playPause"; }
+    Mod+Shift+N    allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "next"; }
+    Mod+Shift+B    allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "mpris" "previous"; }
+}
