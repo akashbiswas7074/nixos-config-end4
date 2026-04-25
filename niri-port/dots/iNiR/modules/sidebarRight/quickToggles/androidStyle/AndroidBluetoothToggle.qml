@@ -15,7 +15,15 @@ AndroidQuickToggleButton {
     toggled: BluetoothStatus.enabled
     buttonIcon: BluetoothStatus.connected ? "bluetooth_connected" : BluetoothStatus.enabled ? "bluetooth" : "bluetooth_disabled"
     mainAction: () => {
-        Bluetooth.defaultAdapter.enabled = !Bluetooth.defaultAdapter?.enabled
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport()
+            + `BTCTL_BIN="$(command -v bluetoothctl 2>/dev/null || true)"; `
+            + `[ -n "$BTCTL_BIN" ] || BTCTL_BIN="$HOME/.nix-profile/bin/bluetoothctl"; `
+            + `[ -x "$BTCTL_BIN" ] || BTCTL_BIN="/etc/profiles/per-user/$(id -un)/bin/bluetoothctl"; `
+            + `[ -x "$BTCTL_BIN" ] || BTCTL_BIN="/run/current-system/sw/bin/bluetoothctl"; `
+            + `[ -x "$BTCTL_BIN" ] || BTCTL_BIN="bluetoothctl"; `
+            + `if ! command -v "$BTCTL_BIN" >/dev/null 2>&1 && [ ! -x "$BTCTL_BIN" ]; then `
+            + `notify-send 'Bluetooth toggle failed' 'bluetoothctl not found' -a 'Bluetooth' -t 3000; exit 127; fi; `
+            + `if "$BTCTL_BIN" show 2>/dev/null | grep -Eqi 'Powered:[[:space:]]*yes'; then "$BTCTL_BIN" power off; else "$BTCTL_BIN" power on; fi`]);
     }
     altAction: () => {
         root.openMenu()

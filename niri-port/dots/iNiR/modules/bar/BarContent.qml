@@ -483,7 +483,7 @@ Item { // Bar content region
                 }
 
                 BatteryIndicator {
-                    visible: (Config.options?.bar?.modules?.battery ?? true) && (root.useShortenedForm < 2 && Battery.available)
+                    visible: (Config.options?.bar?.modules?.battery ?? true) && Battery.available
                     Layout.alignment: Qt.AlignVCenter
                 }
             }
