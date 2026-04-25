@@ -10,7 +10,7 @@ import qs.services
 
 Singleton {
     id: root
-    property bool available: UPower.displayDevice.isLaptopBattery
+    property bool available: UPower.displayDevice.isPresent
     property var chargeState: UPower.displayDevice.state
     property bool isCharging: chargeState == UPowerDeviceState.Charging
     property bool isPluggedIn: isCharging || chargeState == UPowerDeviceState.PendingCharge
