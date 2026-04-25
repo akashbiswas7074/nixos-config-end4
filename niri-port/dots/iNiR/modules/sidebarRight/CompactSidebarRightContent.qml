@@ -90,6 +90,17 @@ Item {
         Config.setNestedValue("sidebar.right.controlsSectionOrder", order)
     }
 
+    function runNiriAction(action: string): void {
+        Quickshell.execDetached([
+            "bash",
+            "-c",
+            Config.subprocessPathShExport()
+                + "NIRI_BIN=\"$HOME/.nix-profile/bin/niri\"; "
+                + "[ -x \"$NIRI_BIN\" ] || NIRI_BIN=\"niri\"; "
+                + `exec "$NIRI_BIN" msg action ${action}`
+        ])
+    }
+
     // Active section index — persisted
     property int activeSection: Persistent.states?.sidebar?.compactGroup?.tab ?? 0
 
@@ -927,12 +938,9 @@ Item {
                     // ── System action buttons ────────────────────
                     Repeater {
                         model: [
-                            { icon: "restart_alt",       label: Translation.tr("Reload Quickshell"),
-                              action: function() { doReload() } },
-                            { icon: "settings",          label: Translation.tr("Settings"),
-                              action: function() { doSettings() } },
-                            { icon: "power_settings_new",label: Translation.tr("Session"),
-                              action: function() { GlobalStates.sessionOpen = true } },
+                            { icon: "restart_alt",        label: Translation.tr("Reload Quickshell") },
+                            { icon: "settings",           label: Translation.tr("Settings") },
+                            { icon: "power_settings_new", label: Translation.tr("Session") },
                         ]
                         delegate: Item {
                             id: sysItem
@@ -983,7 +991,15 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: sysItem.modelData.action()
+                                    onClicked: {
+                                        if (sysItem.index === 0) {
+                                            root.doReload()
+                                        } else if (sysItem.index === 1) {
+                                            root.doSettings()
+                                        } else if (sysItem.index === 2) {
+                                            GlobalStates.sessionOpen = true
+                                        }
+                                    }
                                 }
                                 BubbleToolTip {
                                     visible: sysMA.containsMouse
@@ -1476,11 +1492,12 @@ Item {
         if (!root.reloadButtonEnabled) return
         root.reloadButtonEnabled = false
         reloadCooldown.restart()
-        if (CompositorService.isHyprland)
-            Hyprland.dispatch("reload")
-        else if (CompositorService.isNiri)
-            Quickshell.execDetached(["niri", "msg", "action", "load-config-file"])
-        Quickshell.execDetached(["bash", Quickshell.shellPath("scripts/restart-shell.sh")])
+        Quickshell.execDetached([
+            "bash",
+            "-c",
+            Config.subprocessPathShExport()
+                + "exec systemctl --user restart inir.service"
+        ])
     }
 
     function doSettings() {
@@ -1492,14 +1509,19 @@ Item {
             for (let i = 0; i < wins.length; i++) {
                 const w = wins[i]
                 if (w.title === "illogical-impulse Settings" && w.app_id === "org.quickshell") {
+                    NiriService.focusWindow(w.id)
                     GlobalStates.sidebarRightOpen = false
-                    Qt.callLater(() => NiriService.focusWindow(w.id))
                     return
                 }
             }
         }
+        const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+        Quickshell.execDetached([
+            "bash",
+            "-c",
+            Config.subprocessPathShExport() + `exec '${inirEsc}' settings`
+        ])
         GlobalStates.sidebarRightOpen = false
-        Qt.callLater(() => Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"]))
     }
 
     // ═════════════════════════════════════════════════════════════
@@ -1760,8 +1782,13 @@ Item {
                 icon: "screenshot_monitor"
                 label: Translation.tr("Screenshot")
                 onClicked: {
+                    const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+                    Quickshell.execDetached([
+                        "bash",
+                        "-c",
+                        Config.subprocessPathShExport() + `exec '${inirEsc}' region screenshot`
+                    ])
                     GlobalStates.sidebarRightOpen = false
-                    Qt.callLater(() => Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "screenshot"]))
                 }
             }
 
@@ -1770,8 +1797,13 @@ Item {
                 icon: "videocam"
                 label: Translation.tr("Record")
                 onClicked: {
+                    const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+                    Quickshell.execDetached([
+                        "bash",
+                        "-c",
+                        Config.subprocessPathShExport() + `exec '${inirEsc}' region record`
+                    ])
                     GlobalStates.sidebarRightOpen = false
-                    Qt.callLater(() => Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "record"]))
                 }
             }
 
@@ -1780,8 +1812,13 @@ Item {
                 icon: "document_scanner"
                 label: Translation.tr("OCR")
                 onClicked: {
+                    const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+                    Quickshell.execDetached([
+                        "bash",
+                        "-c",
+                        Config.subprocessPathShExport() + `exec '${inirEsc}' region ocr`
+                    ])
                     GlobalStates.sidebarRightOpen = false
-                    Qt.callLater(() => Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "ocr"]))
                 }
             }
 
@@ -1790,8 +1827,14 @@ Item {
                 icon: "travel_explore"
                 label: Translation.tr("Search")
                 onClicked: {
+                    const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+                    Quickshell.execDetached([
+                        "bash",
+                        "-c",
+                        Config.subprocessPathShExport()
+                            + `exec '${inirEsc}' region search`
+                    ])
                     GlobalStates.sidebarRightOpen = false
-                    Qt.callLater(() => Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "search"]))
                 }
             }
 
@@ -1800,8 +1843,22 @@ Item {
                 icon: "color_lens"
                 label: Translation.tr("Color Picker")
                 onClicked: {
+                    if (CompositorService.isNiri) {
+                        Quickshell.execDetached([
+                            "bash",
+                            "-c",
+                            Config.subprocessPathShExport()
+                                + "NIRI_BIN=\"$HOME/.nix-profile/bin/niri\"; "
+                                + "[ -x \"$NIRI_BIN\" ] || NIRI_BIN=\"niri\"; "
+                                + "if \"$NIRI_BIN\" msg action pick-color >/dev/null 2>&1; then exit 0; fi; "
+                                + "HYP_BIN=\"$HOME/.nix-profile/bin/hyprpicker\"; "
+                                + "[ -x \"$HYP_BIN\" ] || HYP_BIN=\"hyprpicker\"; "
+                                + "exec \"$HYP_BIN\" -a"
+                        ])
+                    } else {
+                        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + "exec hyprpicker -a"])
+                    }
                     GlobalStates.sidebarRightOpen = false
-                    Qt.callLater(() => Quickshell.execDetached(["hyprpicker", "-a"]))
                 }
             }
 
@@ -1809,7 +1866,10 @@ Item {
                 Layout.fillWidth: true
                 icon: "folder_open"
                 label: Translation.tr("Files")
-                onClicked: Quickshell.execDetached(["xdg-open", Quickshell.env("HOME")])
+                onClicked: {
+                    Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + "exec xdg-open \"$HOME\""])
+                    GlobalStates.sidebarRightOpen = false
+                }
             }
         }
     }

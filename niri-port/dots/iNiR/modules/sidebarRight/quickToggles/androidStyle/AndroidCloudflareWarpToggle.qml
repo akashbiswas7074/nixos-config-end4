@@ -18,6 +18,13 @@ AndroidQuickToggleButton {
     toggled: false
     buttonIcon: "cloud_lock"
 
+    function warpShell(subcommand) {
+        return Config.subprocessPathShExport()
+            + "WARP_BIN=\"$HOME/.nix-profile/bin/warp-cli\"; "
+            + "[ -x \"$WARP_BIN\" ] || WARP_BIN=warp-cli; "
+            + "exec \"$WARP_BIN\" " + subcommand;
+    }
+
     function refreshStatus() {
         fetchActiveState.running = false;
         fetchActiveState.running = true;
@@ -38,7 +45,10 @@ AndroidQuickToggleButton {
 
     Process {
         id: disconnectProc
-        command: [root.warpCliPath, "disconnect"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
+        command: ["bash", "-c", root.warpShell("disconnect")]
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {
                 Quickshell.execDetached([root.notifySendPath,
@@ -53,7 +63,10 @@ AndroidQuickToggleButton {
 
     Process {
         id: connectProc
-        command: [root.warpCliPath, "connect"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
+        command: ["bash", "-c", root.warpShell("connect")]
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {
                 Quickshell.execDetached([root.notifySendPath,
@@ -68,7 +81,10 @@ AndroidQuickToggleButton {
 
     Process {
         id: registrationProc
-        command: [root.warpCliPath, "registration", "new"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
+        command: ["bash", "-c", root.warpShell("registration new")]
         onExited: (exitCode, exitStatus) => {
             console.log("Warp registration exited with code and status:", exitCode, exitStatus)
             if (exitCode === 0) {
@@ -86,7 +102,10 @@ AndroidQuickToggleButton {
     Process {
         id: fetchActiveState
         running: false
-        command: ["sh", "-c", root.warpCliPath + " status"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
+        command: ["bash", "-c", root.warpShell("status")]
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {
                 root.visible = true
@@ -121,6 +140,9 @@ AndroidQuickToggleButton {
 
     Process {
         id: startServiceProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["systemctl", "start", "warp-svc.service"]
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {

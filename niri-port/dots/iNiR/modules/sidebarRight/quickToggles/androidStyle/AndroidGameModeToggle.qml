@@ -2,6 +2,7 @@ import QtQuick
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
+import Quickshell
 
 AndroidQuickToggleButton {
     id: root
@@ -12,7 +13,12 @@ AndroidQuickToggleButton {
     buttonIcon: "gamepad"
 
     mainAction: () => {
-        GameMode.toggle()
+        const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+        Quickshell.execDetached([
+            "bash",
+            "-c",
+            Config.subprocessPathShExport() + `exec '${inirEsc}' gamemode toggle`
+        ])
     }
 
     StyledToolTip {

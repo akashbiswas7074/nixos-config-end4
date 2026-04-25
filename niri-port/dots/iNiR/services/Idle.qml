@@ -36,7 +36,7 @@ Singleton {
     }
 
     function _stopSwayidle() {
-        Quickshell.execDetached(["pkill", "-x", "swayidle"])
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + "exec pkill -x swayidle"])
     }
 
     function _startSwayidle() {
@@ -73,7 +73,8 @@ Singleton {
         }
 
         console.log("[Idle] Starting swayidle")
-        Quickshell.execDetached(cmd)
+        const cmdEsc = cmd.map(c => `'${String(c).replace(/'/g, "'\\''")}'`).join(" ")
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + `exec ${cmdEsc}`])
     }
 
     Timer {

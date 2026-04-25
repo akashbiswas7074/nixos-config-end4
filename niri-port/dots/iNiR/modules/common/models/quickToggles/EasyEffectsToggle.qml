@@ -18,6 +18,7 @@ QuickToggleModel {
     }
 
     mainAction: () => {
+        EasyEffects.fetchAvailability()
         EasyEffects.toggle()
     }
 

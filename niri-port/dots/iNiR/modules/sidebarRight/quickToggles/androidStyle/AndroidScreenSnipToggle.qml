@@ -22,7 +22,12 @@ AndroidQuickToggleButton {
         interval: 300
         repeat: false
         onTriggered: {
-            Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "screenshot"])
+            const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+            Quickshell.execDetached([
+                "bash",
+                "-c",
+                Config.subprocessPathShExport() + `exec '${inirEsc}' region screenshot`
+            ])
         }
     }
 

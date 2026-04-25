@@ -50,22 +50,28 @@ WBarAttachedPanelContent {
             Quickshell.execDetached(["nautilus"])
             break
         case "terminal":
-            Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "terminal"])
+            Config.execInirDetached(["terminal"])
             break
         case "settings":
-            Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+            Config.execInirDetached(["settings"])
             break
         case "wallpaper": {
             const useMain = Config.options?.waffles?.background?.useMainWallpaper ?? true
             Config.setNestedValue("wallpaperSelector.selectionTarget", useMain ? "main" : "waffle")
-            Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "wallpaperSelector", "toggle"])
+            Config.execInirDetached(["wallpaperSelector", "toggle"])
             break
         }
         case "screenshot":
             GlobalStates.regionSelectorOpen = true
             break
         case "screenRecord":
-            GlobalActions.runById("screen-record", "")
+            const fishPath = `${FileUtils.trimFileProtocol(Directories.home)}/.nix-profile/bin/fish`
+            const rec = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath))
+            Quickshell.execDetached([
+                fishPath,
+                "-c",
+                `'${rec}' --fullscreen --sound`
+            ])
             break
         case "session":
             GlobalStates.sessionOpen = true
@@ -143,7 +149,7 @@ WBarAttachedPanelContent {
                             implicitSize: Looks.dp(16)
                         }
                         onClicked: {
-                            Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+                            Config.execInirDetached(["settings"])
                             GlobalStates.waffleWidgetsOpen = false
                         }
                     }

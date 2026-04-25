@@ -43,7 +43,7 @@ AbstractQuickPanel {
         }
         
         EasyEffectsToggle {
-            altAction: () => Quickshell.execDetached(["easyeffects"])
+            altAction: () => Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + "exec easyeffects"])
         }
         
         IdleInhibitor {}

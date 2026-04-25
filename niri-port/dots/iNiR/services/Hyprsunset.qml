@@ -2,6 +2,7 @@ pragma Singleton
 
 import QtQuick
 import qs.modules.common
+import qs.modules.common.functions
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
@@ -93,12 +94,19 @@ Singleton {
 
     function load() { } // Dummy to force init
 
+    /// execDetached does not use Quickshell Process env; on NixOS `wlsunset` is only in the system profile.
+    function _wlsunsetExecShell(): string {
+        const pathEsc = StringUtils.shellSingleQuoteEscape(Config.subprocessPath());
+        const t = root.colorTemperature.toString();
+        return "export PATH='" + pathEsc + "'; exec wlsunset -T 6500 -t " + t + " -s 00:00 -S 23:59";
+    }
+
     function _doEnable() {
         if (CompositorService.isNiri) {
             // wlsunset: -T high temp (day), -t low temp (night)
             // Force "always night" mode: sunset at 00:00, sunrise at 23:59
             // Must use execDetached so wlsunset keeps running after Process ends
-            Quickshell.execDetached(["wlsunset", "-T", "6500", "-t", root.colorTemperature.toString(), "-s", "00:00", "-S", "23:59"]);
+            Quickshell.execDetached(["bash", "-c", root._wlsunsetExecShell()]);
         } else {
             hyprsunsetStartProc.running = true;
         }
@@ -134,17 +142,26 @@ Singleton {
     // === Hyprland processes ===
     Process {
         id: hyprsunsetStartProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["bash", "-c", `pidof hyprsunset || hyprsunset --temperature ${root.colorTemperature}`]
     }
 
     Process {
         id: hyprsunsetKillProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["pkill", "-x", "hyprsunset"]
     }
 
     Process {
         id: fetchProc
         running: !CompositorService.isNiri
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["bash", "-c", "hyprctl hyprsunset temperature"]
         stdout: StdioCollector {
             id: stateCollector
@@ -161,6 +178,9 @@ Singleton {
     // === Niri processes (wlsunset) ===
     Process {
         id: wlsunsetKillProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["pkill", "-x", "wlsunset"]
         onExited: {
             // If we're enabling, start wlsunset after kill completes
@@ -176,6 +196,9 @@ Singleton {
     Process {
         id: niriFetchProc
         running: CompositorService.isNiri
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["pidof", "wlsunset"]
         onExited: (exitCode, exitStatus) => {
             root.active = (exitCode === 0);

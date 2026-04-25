@@ -1854,7 +1854,7 @@ Scope {
     readonly property bool waffleFamilyActive: (Config.options?.panelFamily ?? "ii") === "waffle"
 
     function routeToWaffle(functionName: string): void {
-        Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "waffleAltSwitcher", functionName])
+        Config.execInirDetached(["waffleAltSwitcher", functionName])
     }
 
     IpcHandler {

@@ -56,7 +56,7 @@ Singleton {
 
     Process {
         id: checkProcess
-        command: ["pgrep", "-x", "wf-recorder"]
+        command: [Config.nixosSystemProfileBin + "/pgrep", "-x", "wf-recorder"]
         onExited: (exitCode, exitStatus) => {
             // pgrep returns 0 if process found, 1 if not found
             root.isRecording = (exitCode === 0)

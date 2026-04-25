@@ -79,6 +79,59 @@ Singleton {
             root.configChanged();
     }
 
+    // Quickshell snapshotted INITIAL_ENVIRONMENT before pragma Env runs; child Process may lack PATH.
+    // Prefer absolute paths: tools below live on NixOS at this prefix (see launch.cpp in quickshell).
+    readonly property string nixosSystemProfileBin: "/run/current-system/sw/bin"
+    // Optional merge if you use only command names: environment: ({ PATH: Config.subprocessPath() })
+    function subprocessPath() {
+        const cur = Quickshell.env("PATH") ?? "";
+        const home = Quickshell.env("HOME") ?? "";
+        const user = Quickshell.env("USER") ?? "";
+        const nixProfileBin = home.length > 0 ? `${home}/.nix-profile/bin` : "";
+        const perUserBin = user.length > 0 ? `/etc/profiles/per-user/${user}/bin` : "";
+        let need = "/bin:/run/wrappers/bin:/run/current-system/sw/bin";
+        if (perUserBin.length > 0 && need.indexOf(perUserBin) < 0)
+            need = `${need}:${perUserBin}`;
+        if (nixProfileBin.length > 0 && need.indexOf(nixProfileBin) < 0)
+            need = `${need}:${nixProfileBin}`;
+        if (!cur || cur.length === 0)
+            return need;
+        let out = cur;
+        if (out.indexOf("current-system/sw/bin") < 0)
+            out = `${need}:${out}`;
+        else if (nixProfileBin.length > 0 && out.indexOf(".nix-profile/bin") < 0)
+            out = `${nixProfileBin}:${out}`;
+        return out;
+    }
+
+    /// Prefix for `bash -c` when using `execDetached` (no `Process` environment merge on children).
+    function subprocessPathShExport(): string {
+        const p = root.subprocessPath();
+        const esc = p.replace(/'/g, "'\\''");
+        return "export PATH='" + esc + "'; ";
+    }
+
+    function _trimFileUrl(p) {
+        const s = String(p ?? "");
+        return s.replace(/^file:\/\//, "").replace(/^file:/, "");
+    }
+
+    function _shellSingleQuoteSh(p) {
+        return String(p ?? "").replace(/'/g, "'\\''");
+    }
+
+    /// Run packaged `scripts/inir` under bash with a Nix-friendly PATH. Direct `execDetached([inir, …])`
+    /// often fails: the shebang uses `/usr/bin/env bash`, and env needs PATH to find bash.
+    function execInirDetached(parts) {
+        const list = Array.isArray(parts) ? parts : [];
+        const inirEsc = root._shellSingleQuoteSh(root._trimFileUrl(Quickshell.shellPath("scripts/inir")));
+        let cmd = root.subprocessPathShExport() + `exec '${inirEsc}'`;
+        for (let i = 0; i < list.length; ++i) {
+            cmd += ` '${root._shellSingleQuoteSh(list[i])}'`;
+        }
+        Quickshell.execDetached(["/bin/sh", "-c", cmd]);
+    }
+
     Timer {
         id: fileReloadTimer
         interval: root.readWriteDelay

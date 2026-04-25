@@ -235,7 +235,7 @@ Singleton {
 
     Process {
         id: xembedProxyCheckProc
-        command: ["pgrep", "-x", "xembedsniproxy"]
+        command: [Config.nixosSystemProfileBin + "/pgrep", "-x", "xembedsniproxy"]
         onExited: (exitCode, exitStatus) => {
             root._xembedProxyCheckedOnce = true;
             if (exitCode !== 0) {

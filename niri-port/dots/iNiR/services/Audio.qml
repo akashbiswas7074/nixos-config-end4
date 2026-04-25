@@ -96,6 +96,7 @@ Singleton {
     readonly property list<var> inputAppNodes: root.appNodes(false)
     readonly property list<var> outputDevices: root.devices(true)
     readonly property list<var> inputDevices: root.devices(false)
+    readonly property string _wpctl: Config.nixosSystemProfileBin + "/wpctl"
 
     // Signals
     signal sinkProtectionTriggered(string reason);
@@ -116,7 +117,7 @@ Singleton {
             root._pendingSourceVolume = clamped
             return
         }
-        wpctlSetSourceVolume.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", String(clamped)]
+        wpctlSetSourceVolume.command = [root._wpctl, "set-volume", "@DEFAULT_AUDIO_SOURCE@", String(clamped)]
         wpctlSetSourceVolume.running = true
     }
 
@@ -126,7 +127,7 @@ Singleton {
             root.source.audio.muted = shouldMute
         }
         if (wpctlSetMicMute.running) return
-        wpctlSetMicMute.command = ["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", shouldMute ? "1" : "0"]
+        wpctlSetMicMute.command = [root._wpctl, "set-mute", "@DEFAULT_AUDIO_SOURCE@", shouldMute ? "1" : "0"]
         wpctlSetMicMute.running = true
     }
 
@@ -137,27 +138,27 @@ Singleton {
 
     Process {
         id: wpctlSetMicMute
-        command: ["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]
+        command: [root._wpctl, "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]
         onExited: refreshMicState()
     }
 
     Process {
         id: wpctlSetSourceVolume
-        command: ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", "1.0"]
+        command: [root._wpctl, "set-volume", "@DEFAULT_AUDIO_SOURCE@", "1.0"]
         onExited: {
             refreshMicState()
             if (!root._pendingSourceVolumeApply) return
 
             const queuedVolume = Math.max(0, Math.min(root.hardMaxValue, root._pendingSourceVolume))
             root._pendingSourceVolumeApply = false
-            wpctlSetSourceVolume.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", String(queuedVolume)]
+            wpctlSetSourceVolume.command = [root._wpctl, "set-volume", "@DEFAULT_AUDIO_SOURCE@", String(queuedVolume)]
             wpctlSetSourceVolume.running = true
         }
     }
 
     Process {
         id: wpctlGetMicState
-        command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SOURCE@"]
+        command: [root._wpctl, "get-volume", "@DEFAULT_AUDIO_SOURCE@"]
         stdout: StdioCollector {
             id: wpctlGetMicStateStdout
         }
@@ -184,13 +185,13 @@ Singleton {
 
     Process {
         id: wpctlSetDefaultDevice
-        command: ["wpctl", "set-default", "0"]
+        command: [root._wpctl, "set-default", "0"]
         onExited: {
             // After switching default sink, immediately nudge volume via wpctl so
             // USB/device-route sinks (e.g. USB mic used as output) get their volume
             // state initialised in PipeWire without requiring pavucontrol interaction.
             if (!wpctlSetSinkVolume.running) {
-                wpctlSetSinkVolume.command = ["wpctl", "set-volume",
+                wpctlSetSinkVolume.command = [root._wpctl, "set-volume",
                     "@DEFAULT_AUDIO_SINK@",
                     String(root.sink?.audio?.volume ?? 0.5)]
                 wpctlSetSinkVolume.running = true
@@ -202,19 +203,19 @@ Singleton {
     // the PipeWire device-route level and is not reachable through the QML binding.
     Process {
         id: wpctlSetSinkVolume
-        command: ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "1.0"]
+        command: [root._wpctl, "set-volume", "@DEFAULT_AUDIO_SINK@", "1.0"]
     }
 
     // Relative increment/decrement — does not require reading current volume from QML,
     // so it works even when Quickshell has not yet tracked the USB sink node.
     Process {
         id: wpctlIncrementSinkVolume
-        command: ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "2%+"]
+        command: [root._wpctl, "set-volume", "@DEFAULT_AUDIO_SINK@", "2%+"]
     }
 
     Process {
         id: wpctlDecrementSinkVolume
-        command: ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "2%-"]
+        command: [root._wpctl, "set-volume", "@DEFAULT_AUDIO_SINK@", "2%-"]
     }
 
     Timer {
@@ -236,7 +237,7 @@ Singleton {
 
         // Always send to wpctl regardless of QML node availability.
         if (!wpctlSetSinkVolume.running) {
-            wpctlSetSinkVolume.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", String(clamped)]
+            wpctlSetSinkVolume.command = [root._wpctl, "set-volume", "@DEFAULT_AUDIO_SINK@", String(clamped)]
             wpctlSetSinkVolume.running = true
         }
 
@@ -320,7 +321,7 @@ Singleton {
         if (!Number.isFinite(nodeId) || nodeId <= 0 || wpctlSetDefaultDevice.running)
             return
 
-        wpctlSetDefaultDevice.command = ["wpctl", "set-default", String(nodeId)]
+        wpctlSetDefaultDevice.command = [root._wpctl, "set-default", String(nodeId)]
         wpctlSetDefaultDevice.running = true
     }
 

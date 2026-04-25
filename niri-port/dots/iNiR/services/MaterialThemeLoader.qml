@@ -2,6 +2,7 @@ pragma Singleton
 pragma ComponentBehavior: Bound
 
 import qs.modules.common
+import qs.modules.common.functions
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -81,6 +82,9 @@ Singleton {
     Process {
         id: schemeVariantProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (code, status) => {
             if (code === 0) {
                 // Script succeeded — colors.json is ready. Set force flag so the
@@ -101,6 +105,9 @@ Singleton {
     Process {
         id: darkModeProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (code, status) => {
             if (code === 0) {
                 root._forceApply = true
@@ -225,9 +232,10 @@ Singleton {
             if (!root.isAutoTheme && !root._pendingExternalApply) return;
             root._pendingExternalApply = false
             if (!root.defaultApplyExternal) return;
+            const applyScript = Directories.scriptsPath + "/colors/applycolor.sh"
             Quickshell.execDetached([
-                "bash",
-                Directories.scriptsPath + "/colors/applycolor.sh"
+                "bash", "-c",
+                Config.subprocessPathShExport() + "exec bash '" + StringUtils.shellSingleQuoteEscape(applyScript) + "'"
             ])
         }
     }

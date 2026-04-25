@@ -9,7 +9,7 @@ QuickToggleButton {
     toggled: GameMode.active
 
     onClicked: {
-        GameMode.toggle()
+        Config.execInirDetached(["gamemode", "toggle"])
     }
 
     // Visual indicator when auto-detected

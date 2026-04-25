@@ -182,7 +182,11 @@ case "${SKIP_QUICKSHELL}" in
       else
         # Fresh install: create service from template, rewriting ExecStart path
         local _tmp_svc="${XDG_CACHE_HOME:-$HOME/.cache}/inir.service.$$"
-        local _launcher_escaped="${INIR_LAUNCHER_PATH//&/\\&}"
+        local _svc_launcher="${INIR_LAUNCHER_PATH}"
+        if declare -F inir_systemd_launcher_path >/dev/null 2>&1; then
+          _svc_launcher="$(inir_systemd_launcher_path)"
+        fi
+        local _launcher_escaped="${_svc_launcher//&/\\&}"
         sed -e "s|^ExecStart=.*|ExecStart=${_launcher_escaped} run --session|" \
             -e "s|^ExecStopPost=-.*|ExecStopPost=-${_launcher_escaped} cleanup-orphans|" \
             "$_service_asset" > "$_tmp_svc"
@@ -303,7 +307,11 @@ case "${SKIP_NIRI}" in
         sed -i "s|^spawn-at-startup \".*polkit.*\"|spawn-at-startup \"${POLKIT_AGENT}\"|" "$NIRI_STARTUP_TARGET"
         log_success "Polkit agent patched: ${POLKIT_AGENT}"
       else
-        log_warning "No polkit agent found — sudo dialogs may not work"
+        if [[ "${OS_GROUP_ID}" == "nixos" ]]; then
+          log_warning "No polkit agent found — pkexec / GUI polkit prompts will not work. Add polkit_gnome (e.g. programs.inir.enablePolkit = true in the iNiR NixOS module, or pkgs.polkit_gnome in system/home packages), nixos-rebuild, then re-run ./setup so the Niri spawn line points at the real binary."
+        else
+          log_warning "No polkit agent found — sudo dialogs may not work (install polkit-gnome, polkit-kde-authentication-agent, or similar)"
+        fi
       fi
 
       # Patch config.kdl: detect QT platform theme

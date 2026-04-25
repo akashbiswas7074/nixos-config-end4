@@ -163,7 +163,7 @@ Item {
         anchors.bottom: fabButton.top
         anchors.bottomMargin: 8
         baseSize: 40
-        onClicked: Quickshell.execDetached(["xdg-open", Directories.todoTxtPath])
+        onClicked: Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + `exec xdg-open '${Directories.todoTxtPath.replace(/'/g, "'\\\\''")}'`])
         iconText: "edit_note"
     }
 

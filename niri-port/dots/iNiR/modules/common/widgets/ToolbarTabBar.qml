@@ -55,6 +55,19 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.HorizontalFlick
 
+        // Wheel-only: do not stack a MouseArea on top of tab buttons — it can steal clicks on some setups.
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: (event) => {
+                if (event.angleDelta.y < 0) {
+                    root.incrementCurrentIndex();
+                } else if (event.angleDelta.y > 0) {
+                    root.decrementCurrentIndex();
+                }
+                Qt.callLater(root.ensureCurrentVisible);
+            }
+        }
+
         contentWidth: groupContainer.implicitWidth
         contentHeight: height
 
@@ -148,22 +161,6 @@ Item {
     onCurrentIndexChanged: Qt.callLater(root.ensureCurrentVisible)
     onWidthChanged: Qt.callLater(root.ensureCurrentVisible)
     Component.onCompleted: Qt.callLater(root.ensureCurrentVisible)
-
-    MouseArea {
-        anchors.fill: parent
-        z: 2
-        acceptedButtons: Qt.NoButton
-        cursorShape: Qt.PointingHandCursor
-        onWheel: (event) => {
-            if (event.angleDelta.y < 0) {
-                root.incrementCurrentIndex();
-            }
-            else {
-                root.decrementCurrentIndex();
-            }
-            Qt.callLater(root.ensureCurrentVisible)
-        }
-    }
 
     // TabBar doesn't allow tabs to be of different sizes. Literally unusable. 
     // We use it only for the logic and draw stuff manually

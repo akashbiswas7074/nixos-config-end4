@@ -909,7 +909,7 @@ Scope {
                             buttonRadius: Appearance.rounding.full
                             implicitWidth: 36
                             implicitHeight: 36
-                            onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "lock", "activate"])
+                            onClicked: Config.execInirDetached(["lock", "activate"])
                             contentItem: MaterialSymbol {
                                 anchors.centerIn: parent
                                 horizontalAlignment: Text.AlignHCenter
@@ -1134,7 +1134,7 @@ Scope {
                                 id: overlayRestartTimer
                                 interval: 500
                                 onTriggered: {
-                                    Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings-window"])
+                                    Config.execInirDetached(["settings-window"])
                                 }
                             }
                         }

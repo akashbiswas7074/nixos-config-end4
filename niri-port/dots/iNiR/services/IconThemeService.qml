@@ -208,6 +208,9 @@ Singleton {
         property string themeName: ""
         property bool skipRestart: false
         command: ["gsettings", "set", "org.gnome.desktop.interface", "icon-theme", gsettingsSetProc.themeName]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             console.log("[IconThemeService] gsettings set exited:", exitCode, "theme:", gsettingsSetProc.themeName)
             // Sync to KDE/Qt apps via kdeglobals
@@ -244,10 +247,13 @@ if "Icons" not in config:
 
 config["Icons"]["Theme"] = theme
 
-with open(config_path, "w") as f:
+    with open(config_path, "w") as f:
     config.write(f, space_around_delimiters=False)
 `
         ]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             // Also update plasma icon theme via kwriteconfig if available
             kwriteconfigProc.themeName = kdeGlobalsUpdateProc.themeName
@@ -269,13 +275,11 @@ with open(config_path, "w") as f:
         id: kwriteconfigProc
         property string themeName: ""
         property bool skipRestart: false
-        command: [
-            "kwriteconfig6",
-            "--file", "kdeglobals",
-            "--group", "Icons",
-            "--key", "Theme",
-            kwriteconfigProc.themeName
-        ]
+        command: ["bash", "-c", Config.subprocessPathShExport()
+            + `exec kwriteconfig6 --file kdeglobals --group Icons --key Theme '${StringUtils.shellSingleQuoteEscape(kwriteconfigProc.themeName)}'`]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             console.log("[IconThemeService] kwriteconfig exited:", exitCode, "theme:", kwriteconfigProc.themeName)
             // Also sync to qt5ct and qt6ct
@@ -317,6 +321,9 @@ else:
         config.write(f, space_around_delimiters=False)
 `
         ]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             console.log("[IconThemeService] qt5ct updated:", exitCode === 0 ? "success" : "failed")
         }
@@ -351,6 +358,9 @@ else:
         config.write(f, space_around_delimiters=False)
 `
         ]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             console.log("[IconThemeService] qt6ct updated:", exitCode === 0 ? "success" : "failed")
             // Also sync to GTK settings.ini files
@@ -388,6 +398,9 @@ for subdir in ["gtk-3.0", "gtk-4.0"]:
         f.write(content)
 `
         ]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             console.log("[IconThemeService] GTK settings.ini updated:", exitCode === 0 ? "success" : "failed")
         }
@@ -396,6 +409,9 @@ for subdir in ["gtk-3.0", "gtk-4.0"]:
     Process {
         id: currentThemeProc
         command: ["gsettings", "get", "org.gnome.desktop.interface", "icon-theme"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         stdout: SplitParser {
             onRead: line => {
                 root.currentTheme = line.trim().replace(/'/g, "")
@@ -414,7 +430,9 @@ for subdir in ["gtk-3.0", "gtk-4.0"]:
             "-type",
             "d"
         ]
-        
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         property var themes: []
         
         stdout: SplitParser {

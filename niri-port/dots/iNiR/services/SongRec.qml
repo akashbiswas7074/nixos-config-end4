@@ -16,11 +16,17 @@ Singleton {
     property int timeoutDuration: Config.options?.musicRecognition?.timeout ?? 10
     readonly property bool running: recognizeMusicProc.running
     property bool dunstifyAvailable: false
+    property bool songrecAvailable: true
 
     function toggleRunning(running) {
         const wantRunning = (running !== undefined) ? running : !root.running
         if (recognizeMusicProc.running && wantRunning === false) root.manuallyStopped = true;
         if (wantRunning === true) root.manuallyStopped = false;
+        if (wantRunning === true && !root.songrecAvailable) {
+            songrecCheckProc.running = true
+            Quickshell.execDetached(["notify-send", Translation.tr("Couldn't recognize music"), Translation.tr("Make sure you have songrec installed"), "-a", "Shell"])
+            return
+        }
 
         recognizeMusicProc.running = wantRunning
         musicReconizedProc.running = false
@@ -46,14 +52,30 @@ Singleton {
 
     Component.onCompleted: {
         dunstifyCheckProc.running = true
+        songrecCheckProc.running = true
     }
 
     Process {
         id: dunstifyCheckProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["which", "dunstify"]
         onExited: (exitCode, exitStatus) => {
             root.dunstifyAvailable = (exitCode === 0)
+        }
+    }
+
+    Process {
+        id: songrecCheckProc
+        running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
+        command: ["which", "songrec"]
+        onExited: (exitCode, exitStatus) => {
+            root.songrecAvailable = (exitCode === 0)
         }
     }
 
@@ -84,18 +106,27 @@ Singleton {
     Process {
         id: recognizeMusicProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["bash", `${Directories.scriptsPath}/musicRecognition/recognize-music.sh`, "-i", String(root.timeoutInterval), "-t", String(root.timeoutDuration), "-s", root.monitorSourceString]
         stdout: StdioCollector {
+            id: recognizeOut
             onStreamFinished: {
-                if (root.manuallyStopped) {
-                    root.manuallyStopped = false
-                    return
-                }
-                handleRecognition(this.text)
+                // handled in onExited to avoid duplicate error notifications
             }
         }
         onExited: (exitCode, exitStatus) => {
+            if (root.manuallyStopped) {
+                root.manuallyStopped = false
+                return
+            }
+            if (exitCode === 0) {
+                handleRecognition(recognizeOut.text)
+                return
+            }
             if (exitCode === 1) {
+                root.songrecAvailable = false
                 Quickshell.execDetached(["notify-send", Translation.tr("Couldn't recognize music"), Translation.tr("Make sure you have songrec installed"), "-a", "Shell"])
             }
         }
@@ -104,6 +135,9 @@ Singleton {
     Process {
         id: musicReconizedProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: [
             "dunstify",
             Translation.tr("Music Recognized"), 

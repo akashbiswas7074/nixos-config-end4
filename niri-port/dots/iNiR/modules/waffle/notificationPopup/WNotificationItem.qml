@@ -241,6 +241,9 @@ Item {
 
                     Process {
                         id: copyProcess
+                        environment: ({
+                            "PATH": Config.subprocessPath()
+                        })
                         command: ["wl-copy", root.notifBody]
                         onExited: (code, status) => {
                             if (code === 0) {

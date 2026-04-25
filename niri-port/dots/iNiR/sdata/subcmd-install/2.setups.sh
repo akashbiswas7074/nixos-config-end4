@@ -191,8 +191,28 @@ function disable_super_daemon_if_present(){
 #####################################################################################
 # GTK/KDE settings
 #####################################################################################
+
+# Return 0 if we can create or overwrite a user config file. Home Manager / Nix
+# may symlink ~/.config trees into the store; those are read-only — skip, don't fail.
+_inir_user_config_path_writable() {
+  local path="$1"
+  local d
+  d=$(dirname -- "$path")
+  if ! mkdir -p "$d" 2>/dev/null; then
+    return 1
+  fi
+  if [[ -e "$path" ]]; then
+    [[ -w "$path" ]]
+    return
+  fi
+  ( umask 077; : >"$path" ) 2>/dev/null && { rm -f "$path"; return 0; }
+  return 1
+}
+
 function setup_desktop_settings(){
   tui_info "Applying desktop settings..."
+
+  local _cfg_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
 
   local preferred_icon_theme="WhiteSur-dark"
   local icon_theme="$preferred_icon_theme"
@@ -204,13 +224,18 @@ function setup_desktop_settings(){
   # Keep default icon theme aligned with iNiR defaults/config and installer payload.
   # If preferred theme is not installed, fall back to Adwaita.
   # If user later changes icon theme in Settings, IconThemeService persists and syncs it.
+  # Skip when glib schemas are absent (minimal Niri images) — avoids "No schemas installed" spam.
   if command -v gsettings &>/dev/null; then
-    try gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-    try gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
-    try gsettings set org.gnome.desktop.interface icon-theme "$icon_theme"
-    try gsettings set org.gnome.desktop.interface cursor-theme 'capitaine-cursors-light'
-    try gsettings set org.gnome.desktop.interface cursor-size 24
-    try gsettings set org.gnome.desktop.interface font-name 'Rubik 11'
+    if gsettings list-schemas 2>/dev/null | grep -qx 'org.gnome.desktop.interface'; then
+      try gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+      try gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3-dark'
+      try gsettings set org.gnome.desktop.interface icon-theme "$icon_theme"
+      try gsettings set org.gnome.desktop.interface cursor-theme 'capitaine-cursors-light'
+      try gsettings set org.gnome.desktop.interface cursor-size 24
+      try gsettings set org.gnome.desktop.interface font-name 'Rubik 11'
+    else
+      log_info "Skipping gsettings (no org.gnome.desktop.interface schema — install gsettings-desktop-schemas if you use GTK/GNOME apps)"
+    fi
   fi
   
   # KDE/Qt settings (Dolphin, etc.)
@@ -226,8 +251,16 @@ function setup_desktop_settings(){
   # Configure Kvantum theme via config file (avoid GUI)
   # kvantummanager --set can open a GUI window, so we write the config directly
   # Use MaterialAdw — this is the dynamic theme updated by apply-gtk-theme.sh
-  mkdir -p "${XDG_CONFIG_HOME}/Kvantum"
-  echo -e "[General]\ntheme=MaterialAdw" > "${XDG_CONFIG_HOME}/Kvantum/kvantum.kvconfig"
+  local _kvantum_kvc="${_cfg_dir}/Kvantum/kvantum.kvconfig"
+  if _inir_user_config_path_writable "$_kvantum_kvc"; then
+    if echo -e "[General]\ntheme=MaterialAdw" >"$_kvantum_kvc" 2>/dev/null; then
+      log_success "Kvantum default theme set to MaterialAdw"
+    else
+      log_info "Skipping Kvantum kvantum.kvconfig: write failed (read-only or managed config)"
+    fi
+  else
+    log_info "Skipping Kvantum kvantum.kvconfig (read-only or managed, e.g. Home Manager). Set theme=MaterialAdw in your Kvantum config if you use Kvantum."
+  fi
 
   # Nautilus dconf defaults (sidebar, mounted volumes, tree view, space info)
   if command -v dconf &>/dev/null; then
@@ -244,11 +277,14 @@ function setup_desktop_settings(){
   fi
 
   # xdg-desktop-portal config for Niri (required for dark mode in GTK4/libadwaita apps)
-  mkdir -p "${XDG_CONFIG_HOME}/xdg-desktop-portal"
-  if [[ -f "dots/.config/xdg-desktop-portal/niri-portals.conf" ]]; then
-    cp "dots/.config/xdg-desktop-portal/niri-portals.conf" "${XDG_CONFIG_HOME}/xdg-desktop-portal/niri-portals.conf"
-  else
-    cat > "${XDG_CONFIG_HOME}/xdg-desktop-portal/niri-portals.conf" << 'PORTAL_EOF'
+  local _portal_conf="${_cfg_dir}/xdg-desktop-portal/niri-portals.conf"
+  if _inir_user_config_path_writable "$_portal_conf"; then
+    mkdir -p "${_cfg_dir}/xdg-desktop-portal" 2>/dev/null
+    if [[ -f "dots/.config/xdg-desktop-portal/niri-portals.conf" ]]; then
+      cp "dots/.config/xdg-desktop-portal/niri-portals.conf" "$_portal_conf" 2>/dev/null || true
+    fi
+    if [[ ! -f "$_portal_conf" ]]; then
+      cat >"$_portal_conf" << 'PORTAL_EOF'
 [preferred]
 default = gnome;gtk
 org.freedesktop.impl.portal.ScreenCast = gnome
@@ -257,8 +293,15 @@ org.freedesktop.impl.portal.Access = gtk
 org.freedesktop.impl.portal.FileChooser = gtk
 org.freedesktop.impl.portal.Notification = gtk
 PORTAL_EOF
+    fi
+    if [[ -f "$_portal_conf" && -w "$_portal_conf" ]]; then
+      log_success "xdg-desktop-portal configured for Niri"
+    else
+      log_info "xdg-desktop-portal niri-portals.conf: write failed; check ${_portal_conf} or manage it in Nix / Home Manager"
+    fi
+  else
+    log_info "Skipping xdg-desktop-portal niri-portals.conf (read-only or managed, e.g. Home Manager). On NixOS, set this file via home.file or xdg.configFile."
   fi
-  log_success "xdg-desktop-portal configured for Niri"
   
   log_success "Desktop settings applied"
 }

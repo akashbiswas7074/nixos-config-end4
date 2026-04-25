@@ -29,19 +29,34 @@ Singleton {
     }
 
     function increaseBrightness(): void {
-        const focusedName = CompositorService.isNiri ? NiriService.currentOutput : Hyprland.focusedMonitor?.name;
-        if (!focusedName) return;
-        const monitor = monitors.find(m => focusedName === m.screen.name);
+        const monitor = _monitorForBrightnessControl();
         if (monitor)
             monitor.setBrightness(monitor.brightness + 0.05);
     }
 
     function decreaseBrightness(): void {
-        const focusedName = CompositorService.isNiri ? NiriService.currentOutput : Hyprland.focusedMonitor?.name;
-        if (!focusedName) return;
-        const monitor = monitors.find(m => focusedName === m.screen.name);
+        const monitor = _monitorForBrightnessControl();
         if (monitor)
             monitor.setBrightness(monitor.brightness - 0.05);
+    }
+
+    /// Same screen selection as BrightnessOSD: Niri output name can disagree with `m.screen.name`
+    /// or be empty briefly; fall back to primary / first screen so keys and IPC still work.
+    function _monitorForBrightnessControl(): var {
+        if (CompositorService.isNiri) {
+            const screen = Quickshell.screens.find(s => s.name === NiriService.currentOutput)
+                ?? GlobalStates.primaryScreen
+                ?? (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null);
+            return screen ? getMonitorForScreen(screen) : undefined;
+        }
+        if (CompositorService.isHyprland) {
+            const name = Hyprland.focusedMonitor?.name;
+            const screen = (name ? Quickshell.screens.find(s => s.name === name) : null)
+                ?? GlobalStates.primaryScreen
+                ?? (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null);
+            return screen ? getMonitorForScreen(screen) : undefined;
+        }
+        return undefined;
     }
 
     reloadableId: "brightness"
@@ -54,7 +69,10 @@ Singleton {
     Process {
         id: ddcProc
 
-        command: ["ddcutil", "detect", "--brief"]
+        command: ["bash", "-c", Config.subprocessPathShExport() + "exec ddcutil detect --brief"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         stdout: SplitParser {
             splitMarker: "\n\n"
             onRead: data => {
@@ -72,6 +90,9 @@ Singleton {
 
     Process {
         id: setProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
     }
 
     component BrightnessMonitor: QtObject {
@@ -113,16 +134,30 @@ Singleton {
 
         function initialize() {
             monitor.ready = false;
-            initProc.command = isDdc ? ["ddcutil", "-b", busNum, "getvcp", "10", "--brief"] : ["sh", "-c", `echo "a b c $(brightnessctl g) $(brightnessctl m)"`];
+            initProc.command = isDdc
+                ? ["bash", "-c", Config.subprocessPathShExport() + `exec ddcutil -b '${busNum}' getvcp 10 --brief`]
+                : ["bash", "-c", Config.subprocessPathShExport() + `echo "a b c $(brightnessctl g) $(brightnessctl m)"`];
             initProc.running = true;
         }
 
         readonly property Process initProc: Process {
+            environment: ({
+                "PATH": Config.subprocessPath()
+            })
             stdout: SplitParser {
                 onRead: data => {
-                    const [, , , current, max] = data.split(" ");
-                    monitor.rawMaxBrightness = parseInt(max);
-                    monitor.brightness = parseInt(current) / monitor.rawMaxBrightness;
+                    const parts = data.trim().split(/\s+/);
+                    const current = parseInt(parts[3], 10);
+                    const max = parseInt(parts[4], 10);
+                    if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) {
+                        console.warn("[Brightness] backlight init failed (no brightnessctl device or permission?). screen=", monitor.screen?.name, "line=", data);
+                        monitor.rawMaxBrightness = 1;
+                        monitor.brightness = 0;
+                        monitor.ready = false;
+                        return;
+                    }
+                    monitor.rawMaxBrightness = max;
+                    monitor.brightness = current / max;
                     monitor.ready = true;
                 }
             }
@@ -138,9 +173,13 @@ Singleton {
         }
 
         function syncBrightness() {
+            if (!monitor.ready || !Number.isFinite(monitor.rawMaxBrightness) || monitor.rawMaxBrightness <= 0)
+                return;
             const brightnessValue = Math.max(monitor.multipliedBrightness, 0)
             const rawValueRounded = Math.max(Math.floor(brightnessValue * monitor.rawMaxBrightness), 1);
-            setProc.command = isDdc ? ["ddcutil", "-b", busNum, "setvcp", "10", rawValueRounded] : ["brightnessctl", "--class", "backlight", "s", rawValueRounded, "--quiet"];
+            setProc.command = isDdc
+                ? ["bash", "-c", Config.subprocessPathShExport() + `exec ddcutil -b '${busNum}' setvcp 10 '${rawValueRounded}'`]
+                : ["bash", "-c", Config.subprocessPathShExport() + `exec brightnessctl --class backlight s '${rawValueRounded}' --quiet`];
             setProc.startDetached();
         }
 
@@ -229,6 +268,9 @@ Singleton {
                     + ` && grim -o '${StringUtils.shellSingleQuoteEscape(screenScope.screenName)}' -`
                     + ` | magick png:- -colorspace Gray -format "%[fx:mean*100]" info:`
                 ]
+                environment: ({
+                    "PATH": Config.subprocessPath()
+                })
                 stdout: StdioCollector {
                     id: lightnessCollector
                     onStreamFinished: {

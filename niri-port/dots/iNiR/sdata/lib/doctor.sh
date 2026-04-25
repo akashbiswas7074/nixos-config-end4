@@ -79,6 +79,7 @@ check_dependencies() {
         "wf-recorder:wf-recorder"
         "ffmpeg:ffmpeg"
         "swappy:swappy"
+        "satty:satty"
         "tesseract:tesseract"
         "blueman-manager:Blueman"
         "gowall:gowall"
@@ -329,15 +330,24 @@ check_python_packages() {
 
     # Check if venv exists (or was just removed above)
     if [[ ! -d "$venv" ]]; then
-        if [[ "${OS_GROUP_ID}" == "nixos" ]]; then
-            doctor_fail "Python venv missing (ensure 'uv' and 'python3' are in your Nix environment)"
-            return
-        fi
-        if command -v uv &>/dev/null; then
+        if command -v uv &>/dev/null && command -v python3 &>/dev/null; then
             uv venv "$venv" -p 3.12 2>/dev/null || uv venv "$venv" 2>/dev/null
-            doctor_fix "Created Python venv"
+            if [[ -d "$venv" ]]; then
+                doctor_fix "Created Python venv"
+            else
+                if [[ "${OS_GROUP_ID}" == "nixos" ]]; then
+                    doctor_fail "Python venv creation failed (ensure 'uv' and 'python3' are in your Nix environment)"
+                else
+                    doctor_fail "Python venv creation failed"
+                fi
+                return
+            fi
         else
-            doctor_fail "Python venv missing (install uv)"
+            if [[ "${OS_GROUP_ID}" == "nixos" ]]; then
+                doctor_fail "Python venv missing (ensure 'uv' and 'python3' are in your Nix environment)"
+            else
+                doctor_fail "Python venv missing (install uv and python3)"
+            fi
             return
         fi
     fi
@@ -934,7 +944,7 @@ check_matugen_colors() {
 
             if [[ -n "$gen_material_script" ]]; then
                 local python_cmd=""
-                local venv_python="${XDG_STATE_HOME}/quickshell/.venvpython3"
+                local venv_python="${XDG_STATE_HOME}/quickshell/.venv/bin/python3"
                 if [[ -x "$venv_python" ]]; then
                     python_cmd="$venv_python"
                 elif command -v python3 &>/dev/null; then

@@ -4,6 +4,34 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/config-path.sh
 source "$SCRIPT_DIR/../lib/config-path.sh"
 
+first_exec() {
+    for candidate in "$@"; do
+        if [[ -n "$candidate" && -x "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+home_bin="${HOME}/.nix-profile/bin"
+user_bin="/etc/profiles/per-user/${USER:-akashbiswas}/bin"
+sys_bin="/run/current-system/sw/bin"
+
+WF_RECORDER_BIN="$(first_exec "${sys_bin}/wf-recorder" "${home_bin}/wf-recorder" "${user_bin}/wf-recorder" || true)"
+PGREP_BIN="$(first_exec "${sys_bin}/pgrep" "${home_bin}/pgrep" "${user_bin}/pgrep" || true)"
+PKILL_BIN="$(first_exec "${sys_bin}/pkill" "${home_bin}/pkill" "${user_bin}/pkill" || true)"
+SLURP_BIN="$(first_exec "${sys_bin}/slurp" "${home_bin}/slurp" "${user_bin}/slurp" || true)"
+NOTIFY_BIN="$(first_exec "${sys_bin}/notify-send" "${home_bin}/notify-send" "${user_bin}/notify-send" || true)"
+XDG_USER_DIR_BIN="$(first_exec "${sys_bin}/xdg-user-dir" "${home_bin}/xdg-user-dir" "${user_bin}/xdg-user-dir" || true)"
+
+[[ -z "$WF_RECORDER_BIN" ]] && WF_RECORDER_BIN="$(command -v wf-recorder 2>/dev/null || true)"
+[[ -z "$PGREP_BIN" ]] && PGREP_BIN="$(command -v pgrep 2>/dev/null || true)"
+[[ -z "$PKILL_BIN" ]] && PKILL_BIN="$(command -v pkill 2>/dev/null || true)"
+[[ -z "$SLURP_BIN" ]] && SLURP_BIN="$(command -v slurp 2>/dev/null || true)"
+[[ -z "$NOTIFY_BIN" ]] && NOTIFY_BIN="$(command -v notify-send 2>/dev/null || true)"
+[[ -z "$XDG_USER_DIR_BIN" ]] && XDG_USER_DIR_BIN="$(command -v xdg-user-dir 2>/dev/null || true)"
+
 getdate() {
     date '+%Y-%m-%d_%H.%M.%S'
 }
@@ -26,6 +54,10 @@ is_nvenc_codec() {
 is_hw_codec() {
     is_vaapi_codec "$1" || is_nvenc_codec "$1"
 }
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/quickshell/user"
+recorder_safe_marker="$state_dir/recorder-safe-mode"
+last_recording_path_file="$state_dir/last-recording-path"
 
 is_nvidia_gpu() {
     command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null
@@ -217,7 +249,6 @@ is_default_recorder_value() {
 build_common_args() {
     common_args=(
         -f "$output_file"
-        -t
         -r "$FPS"
     )
 
@@ -272,7 +303,6 @@ build_safe_fallback_common_args() {
     fallback_common_args=(
         --pixel-format yuv420p
         -f "$output_file"
-        -t
         -r "$FPS"
     )
 }
@@ -280,8 +310,9 @@ build_safe_fallback_common_args() {
 start_recording_command() {
     local geometry="$1"
     local output_name="$2"
-    local -a preferred_cmd=(wf-recorder)
-    local -a fallback_cmd=(wf-recorder)
+    local -a preferred_cmd=("${WF_RECORDER_BIN:-wf-recorder}")
+    local -a fallback_cmd=("${WF_RECORDER_BIN:-wf-recorder}")
+    local force_safe_mode=false
 
     if [[ -n "$geometry" ]]; then
         preferred_cmd+=(--geometry "$geometry")
@@ -307,10 +338,23 @@ start_recording_command() {
         fallback_cmd+=(-R "$AUDIO_SAMPLE_RATE")
     fi
 
-    if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Starting recording" "$output_name" -a 'Recorder' & disown; fi
+    # Once a preferred encoder failure is observed, avoid repeated noisy retries.
+    # In auto mode we can start directly in safe mode on subsequent runs.
+    if [[ "$ACCELERATION_MODE" == "auto" && -f "$recorder_safe_marker" ]]; then
+        force_safe_mode=true
+    fi
+
+    if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Starting recording" "$output_name" -a 'Recorder' & disown; fi
+    if $force_safe_mode; then
+        "${fallback_cmd[@]}"
+        return
+    fi
+
     if ! "${preferred_cmd[@]}"; then
         if is_truthy "$ENABLE_FALLBACK"; then
-            if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording fallback" "Preferred encoder failed, retrying with safe mode" -a 'Recorder' & disown; fi
+            mkdir -p "$state_dir" 2>/dev/null || true
+            printf '1\n' > "$recorder_safe_marker" 2>/dev/null || true
+            if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording fallback" "Preferred encoder failed, retrying with safe mode" -a 'Recorder' & disown; fi
             "${fallback_cmd[@]}"
         else
             return 1
@@ -367,15 +411,21 @@ if printf '%s\n' "$*" | grep -q -- '--probe-capabilities'; then
 fi
 
 if [[ "$ACCELERATION_MODE" == "gpu" ]]; then
+    rm -f "$recorder_safe_marker" 2>/dev/null || true
     if is_default_recorder_value "$VIDEO_CODEC" "libx264"; then
         VIDEO_CODEC="$(detect_hw_video_codec)"
     fi
 elif [[ "$ACCELERATION_MODE" == "software" ]]; then
+    rm -f "$recorder_safe_marker" 2>/dev/null || true
     if is_default_recorder_value "$VIDEO_CODEC" "libx264" || is_hw_codec "$VIDEO_CODEC"; then
         VIDEO_CODEC="libx264"
     fi
 elif is_default_recorder_value "$VIDEO_CODEC" "libx264"; then
-    VIDEO_CODEC="$(detect_hw_video_codec)"
+    if [[ -f "$recorder_safe_marker" ]]; then
+        VIDEO_CODEC="libx264"
+    else
+        VIDEO_CODEC="$(detect_hw_video_codec)"
+    fi
 fi
 
 if is_vaapi_codec "$VIDEO_CODEC"; then
@@ -391,10 +441,14 @@ if is_nvenc_codec "$VIDEO_CODEC"; then
     fi
 fi
 
-# Fallback to XDG Videos if config path is empty
+# Fallback to XDG Videos if config path is empty; be robust if xdg-user-dir is missing.
 if [[ -z "$SAVE_PATH" ]]; then
-    xdgvideo="$(xdg-user-dir VIDEOS)"
-    if [[ $xdgvideo = "$HOME" ]]; then
+    if [[ -n "$XDG_USER_DIR_BIN" ]]; then
+        xdgvideo="$("$XDG_USER_DIR_BIN" VIDEOS 2>/dev/null || true)"
+    else
+        xdgvideo=""
+    fi
+    if [[ -z "$xdgvideo" || "$xdgvideo" = "$HOME" ]]; then
         SAVE_PATH="$HOME/Videos"
     else
         SAVE_PATH="$xdgvideo"
@@ -402,35 +456,61 @@ if [[ -z "$SAVE_PATH" ]]; then
 fi
 
 mkdir -p "$SAVE_PATH"
-cd "$SAVE_PATH" || exit
 
 # parse --region <value> without modifying $@ so other flags like --fullscreen still work
 ARGS=("$@")
 MANUAL_REGION=""
 SOUND_FLAG=0
 FULLSCREEN_FLAG=0
+FORCE_STOP=0
 for ((i=0;i<${#ARGS[@]};i++)); do
     if [[ "${ARGS[i]}" == "--region" ]]; then
         if (( i+1 < ${#ARGS[@]} )); then
             MANUAL_REGION="${ARGS[i+1]}"
         else
-            if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording cancelled" "No region specified for --region" -a 'Recorder' & disown; fi
+            if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording cancelled" "No region specified for --region" -a 'Recorder' & disown; fi
             exit 1
         fi
     elif [[ "${ARGS[i]}" == "--sound" ]]; then
         SOUND_FLAG=1
     elif [[ "${ARGS[i]}" == "--fullscreen" ]]; then
         FULLSCREEN_FLAG=1
+    elif [[ "${ARGS[i]}" == "--stop" ]]; then
+        FORCE_STOP=1
     fi
 done
 
-if pgrep wf-recorder > /dev/null; then
-    if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording Stopped" "Stopped" -a 'Recorder' & fi
-    pkill wf-recorder &
+is_recorder_running=0
+if [[ -n "$PGREP_BIN" ]] && "$PGREP_BIN" -x wf-recorder > /dev/null; then
+    is_recorder_running=1
+elif pgrep -x wf-recorder > /dev/null 2>&1; then
+    is_recorder_running=1
+fi
+
+if [[ $FORCE_STOP -eq 1 || $is_recorder_running -eq 1 ]]; then
+    if [[ -n "$PKILL_BIN" ]]; then
+        "$PKILL_BIN" -SIGINT -x wf-recorder 2>/dev/null || true
+    else
+        pkill -SIGINT -x wf-recorder 2>/dev/null || true
+    fi
+    # Give wf-recorder a moment to finalize mp4 atom and exit cleanly.
+    for _ in $(seq 1 50); do
+        if ! pgrep -x wf-recorder > /dev/null 2>&1; then
+            break
+        fi
+        sleep 0.1
+    done
+    last_saved="$SAVE_PATH"
+    if [[ -f "$last_recording_path_file" ]]; then
+        last_saved="$(cat "$last_recording_path_file" 2>/dev/null || printf '%s' "$SAVE_PATH")"
+    fi
+    if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording Stopped" "Saved: $last_saved" -a 'Recorder' & fi
 else
     timestamp="$(getdate)"
-    output_file="./recording_${timestamp}.mp4"
+    output_file="$SAVE_PATH/recording_${timestamp}.mp4"
     output_name="recording_${timestamp}.mp4"
+    mkdir -p "$state_dir" 2>/dev/null || true
+    printf '%s\n' "$output_file" > "$last_recording_path_file" 2>/dev/null || true
     build_common_args
     build_audio_args
     build_safe_fallback_common_args
@@ -441,8 +521,8 @@ else
         if [[ -n "$MANUAL_REGION" ]]; then
             region="$MANUAL_REGION"
         else
-            if ! region="$(slurp 2>&1)"; then
-                if is_truthy "$SHOW_NOTIFICATIONS"; then notify-send "Recording cancelled" "Selection was cancelled" -a 'Recorder' & disown; fi
+            if ! region="$("${SLURP_BIN:-slurp}" 2>&1)"; then
+                if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording cancelled" "Selection was cancelled" -a 'Recorder' & disown; fi
                 exit 1
             fi
         fi

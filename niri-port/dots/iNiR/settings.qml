@@ -1941,7 +1941,7 @@ ApplicationWindow {
                     buttonRadius: Appearance.rounding.full
                     implicitWidth: 35
                     implicitHeight: 35
-                    onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "lock", "activate"])
+                    onClicked: Config.execInirDetached(["lock", "activate"])
                     contentItem: MaterialSymbol {
                         anchors.centerIn: parent
                         horizontalAlignment: Text.AlignHCenter
@@ -2147,7 +2147,7 @@ ApplicationWindow {
                     id: settingsRestartTimer
                     interval: 500
                     onTriggered: {
-                        Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+                        Config.execInirDetached(["settings"])
                         Qt.quit()
                     }
                 }

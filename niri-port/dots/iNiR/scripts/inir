@@ -1313,6 +1313,21 @@ resolve_launcher_path() {
     fi
 }
 
+# systemd ExecStart must use the Nix-wrapped inir (qs on PATH). ~/.local/bin/inir is often the raw script.
+resolve_systemd_launcher_path() {
+    if [[ -f /etc/NIXOS ]] || grep -q '^ID=nixos' /etc/os-release 2>/dev/null; then
+        if [[ -x "${HOME}/.nix-profile/bin/inir" ]]; then
+            printf '%s' "${HOME}/.nix-profile/bin/inir"
+            return
+        fi
+        if [[ -x /run/current-system/sw/bin/inir ]]; then
+            printf '%s' /run/current-system/sw/bin/inir
+            return
+        fi
+    fi
+    resolve_launcher_path
+}
+
 show_logs() {
     resolve_config_dir
     if [[ "${1:-}" == "--full" ]]; then
@@ -1640,7 +1655,7 @@ install_user_service() {
     require_command systemctl
     setup_dir="$(resolve_setup_dir)"
     asset_path="$setup_dir/assets/systemd/inir.service"
-    launcher_path="$(resolve_launcher_path)"
+    launcher_path="$(resolve_systemd_launcher_path)"
 
     if [[ ! -f "$asset_path" ]]; then
         echo "service asset not found in $setup_dir" >&2

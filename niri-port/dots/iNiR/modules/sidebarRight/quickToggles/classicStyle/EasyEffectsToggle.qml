@@ -17,6 +17,7 @@ QuickToggleButton {
     }
 
     onClicked: {
+        EasyEffects.fetchAvailability()
         EasyEffects.toggle()
     }
 

@@ -331,6 +331,11 @@ install-python-packages(){
         [[ -n "$xorgproto" ]] && nix_cpath="${nix_cpath}:${xorgproto}/include"
         nix_cpath="${nix_cpath#:}"
 
+        # `nix shell` is a fresh environment; `source activate` does not apply here.
+        # Do NOT use `uv pip install --python "$venv_dir/bin/python"` on NixOS: uv resolves
+        # the underlying Nix interpreter and hits PEP 668 "externally managed" for /nix/store.
+        # Export VIRTUAL_ENV and prepend the venv to PATH *inside* the nix shell (bash -c
+        # so $PATH is the shell's, not the parent install script's).
         x nix shell \
           nixpkgs#uv \
           nixpkgs#gcc \
@@ -348,9 +353,9 @@ install-python-packages(){
           nixpkgs#xorg.xorgproto \
           nixpkgs#gobject-introspection \
           nixpkgs#libffi.dev \
-          --command env PKG_CONFIG_PATH="${nix_pkg_config_path}:${PKG_CONFIG_PATH:-}" CPATH="${nix_cpath}:${CPATH:-}" uv pip install -r "$requirements_file"
+          --command bash -c "export VIRTUAL_ENV=\"$venv_dir\"; export PATH=\"$venv_dir/bin:\$PATH\"; export PKG_CONFIG_PATH=\"${nix_pkg_config_path}:\${PKG_CONFIG_PATH:-}\"; export CPATH=\"${nix_cpath}:\${CPATH:-}\"; exec uv pip install -r \"$requirements_file\""
       else
-        x nix_run_fallback uv uv pip install -r "$requirements_file"
+        x uv pip install -r "$requirements_file"
       fi
       deactivate
     else
@@ -1086,10 +1091,14 @@ EOF
 
 get-polkit-agent(){
   # Returns the path to the polkit authentication agent for the current distro
+  # NixOS / Home Manager: the agent lives in libexec/ (user + system profile), not bin/.
   local agents=(
     "/run/current-system/sw/libexec/polkit-gnome-authentication-agent-1"
+    "/run/current-system/sw/libexec/polkit-mate-authentication-agent-1"
+    "${HOME}/.nix-profile/libexec/polkit-gnome-authentication-agent-1"
+    "/etc/profiles/per-user/${USER}/libexec/polkit-gnome-authentication-agent-1"
     "/run/current-system/sw/bin/polkit-mate-authentication-agent-1"
-    "/etc/profiles/per-user/$USER/bin/polkit-gnome-authentication-agent-1"
+    "/etc/profiles/per-user/${USER}/bin/polkit-gnome-authentication-agent-1"
     "/usr/libexec/kf6/polkit-kde-authentication-agent-1"
     "/usr/lib/polkit-kde-authentication-agent-1"
     "/usr/libexec/polkit-kde-authentication-agent-1"

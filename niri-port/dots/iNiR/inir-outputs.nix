@@ -9,6 +9,11 @@ rec {
   packages = eachSystem (system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          # QProcess / execDetached use a snapshot taken before shell.qml Env pragmas; move it after
+          # qputenv() so child processes see the same PATH (and other vars) as the live qs process.
+          quickshellPatched = pkgs.quickshell.overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [ ./patches/quickshell-0.2.1-initial-env-after-pragma.patch ];
+          });
           awwwCompat = pkgs.symlinkJoin {
             name = "awww-compat";
             paths = [
@@ -79,8 +84,11 @@ rec {
               mkdir -p $out/bin
               makeWrapper $out/share/quickshell/inir/scripts/inir $out/bin/inir \
                 --set INIR_SYSTEM_RUNTIME_DIR "$out/share/quickshell/inir" \
+                --set-default QSG_RENDER_LOOP basic \
+                --set-default QSG_RHI_BACKEND gl \
+                --set-default __GL_THREADED_OPTIMIZATIONS 0 \
                 --prefix PATH : ${lib.makeBinPath [
-                  pkgs.quickshell
+                  quickshellPatched
                   pkgs.kdePackages.qttools
                   pkgs.fish
                   pkgs.bc
@@ -88,6 +96,10 @@ rec {
                   pkgs.cliphist
                   pkgs.curl
                   pkgs.wget
+                  # pgrep, etc. (RecorderStatus, TrayService) if subprocess PATH is incomplete
+                  pkgs.procps
+                  # wpctl (Audio) — same
+                  pkgs.wireplumber
                   pkgs.ripgrep
                   pkgs.jq
                   pkgs.python3
@@ -114,6 +126,7 @@ rec {
                   pkgs.grim
                   pkgs.slurp
                   pkgs.swappy
+                  pkgs.satty
                   pkgs.tesseract
                   pkgs.wf-recorder
                   pkgs.imagemagick
@@ -132,6 +145,8 @@ rec {
                   pkgs.fuzzel
                   pkgs.translate-shell
                   pkgs.hyprpicker
+                  # Niri IPC (pick-color, msg, …) from Quickshell; hyprpicker is Hyprland-oriented
+                  pkgs.niri
                   awwwCompat
                   pkgs.go
                   pkgs.bash
@@ -175,7 +190,7 @@ rec {
             in
               lib.listToAttrs (map (f: {
                 name = relPath f;
-                value = { source = f; };
+                value = { source = f; force = cfg.homeFileForce; };
               }) files);
 
           configLinks = mkLinks ".config";
@@ -188,9 +203,23 @@ rec {
               type = lib.types.package;
               default = packages.${pkgs.system}.default;
             };
+            homeFileForce = lib.mkOption {
+              type = lib.types.bool;
+              default = false;
+              description = ''
+                If true, all iNiR home.file entries use force=true so Home Manager replaces
+                existing regular files with store symlinks even when content already matches
+                (avoids "skipped since they are the same").  Only enable if tools do not need
+                to write in place into those paths (e.g. matugen editing templates under
+                .config/matugen may require writable copies — keep false or exclude paths).
+              '';
+            };
           };
 
           config = lib.mkIf cfg.enable {
+            # Do not add pkgs.quickshell here: cfg.package (inir) already wraps the matching
+            # quickshell in its closure. A second quickshell in ~/.nix-profile (different Qt
+            # minor) can win `command -v qs` and crash with SIGSEGV / Qt ABI mismatch.
             home.packages = [ 
               cfg.package 
               pkgs.go
@@ -199,7 +228,6 @@ rec {
               pkgs.uv
               pkgs.starship
               pkgs.eza
-              pkgs.quickshell
               pkgs.kdePackages.kdialog
               pkgs.kdePackages.kirigami.unwrapped
               pkgs.kdePackages.plasma-integration

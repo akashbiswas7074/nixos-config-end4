@@ -98,13 +98,8 @@ Singleton {
     Process {
         id: kwriteconfigFontProc
         running: false
-        command: [
-            "kwriteconfig6",
-            "--file", "kdeglobals",
-            "--group", "General",
-            "--key", "font",
-            `${root.mainFont},${root.fontSize},-1,5,400,0,0,0,0,0,0,0,0,0,0,1`
-        ]
+        command: ["bash", "-c", Config.subprocessPathShExport()
+            + `exec kwriteconfig6 --file kdeglobals --group General --key font '${root.mainFont},${root.fontSize},-1,5,400,0,0,0,0,0,0,0,0,0,0,1'`]
         onExited: (exitCode, exitStatus) => {
             if (exitCode === 0) {
                 console.log("[FontSyncService] KDE font updated:", root.mainFont)
@@ -119,13 +114,8 @@ Singleton {
         id: kwriteconfigFixedFontProc
         running: false
         property string monoFont: Config.options?.appearance?.typography?.monospaceFont ?? "JetBrainsMono Nerd Font"
-        command: [
-            "kwriteconfig6",
-            "--file", "kdeglobals",
-            "--group", "General",
-            "--key", "fixed",
-            `${monoFont},${root.fontSize},-1,5,400,0,0,0,0,0,0,0,0,0,0,1`
-        ]
+        command: ["bash", "-c", Config.subprocessPathShExport()
+            + `exec kwriteconfig6 --file kdeglobals --group General --key fixed '${monoFont},${root.fontSize},-1,5,400,0,0,0,0,0,0,0,0,0,0,1'`]
         onExited: (exitCode, exitStatus) => {
             if (exitCode === 0) {
                 console.log("[FontSyncService] KDE fixed font updated")

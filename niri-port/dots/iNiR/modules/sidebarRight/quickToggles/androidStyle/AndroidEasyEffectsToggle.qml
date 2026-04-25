@@ -18,6 +18,7 @@ AndroidQuickToggleButton {
     }
 
     mainAction: () => {
+        EasyEffects.fetchAvailability()
         EasyEffects.toggle()
     }
 

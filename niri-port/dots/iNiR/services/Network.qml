@@ -6,6 +6,7 @@ pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import qs.modules.common
 import qs.services.network
 
 /**
@@ -87,11 +88,15 @@ Singleton {
 
     Process {
         id: enableWifiProc
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
     }
 
     Process {
         id: connectProc
         environment: ({
+            "PATH": Config.subprocessPath(),
             LANG: "C",
             LC_ALL: "C"
         })
@@ -117,6 +122,9 @@ Singleton {
 
     Process {
         id: disconnectProc
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         stdout: SplitParser {
             onRead: getNetworks.running = true
         }
@@ -124,6 +132,9 @@ Singleton {
 
     Process {
         id: changePasswordProc
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         onExited: { // Re-attempt connection after changing password
             connectProc.running = false
             connectProc.running = true
@@ -133,11 +144,21 @@ Singleton {
     Process {
         id: rescanProcess
         command: ["nmcli", "dev", "wifi", "list", "--rescan", "yes"]
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         stdout: SplitParser {
             onRead: {
                 wifiScanning = false;
                 getNetworks.running = true;
             }
+        }
+        onExited: (exitCode) => {
+            // If nmcli failed or produced no lines, onRead may not run; always stop scanning
+            // and try to load APs from device scan when exit is zero.
+            wifiScanning = false;
+            if (exitCode === 0)
+                getNetworks.running = true;
         }
     }
 
@@ -180,6 +201,9 @@ Singleton {
     Process {
         id: _cleanupStale
         command: ["pkill", "-f", "nmcli monitor"]
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         running: false
         onExited: subscriber.running = true
     }
@@ -188,6 +212,9 @@ Singleton {
         id: subscriber
         running: false
         command: ["nmcli", "monitor"]
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         // Auto-restart if the monitor process dies (can happen after lockscreen/suspend)
         onRunningChanged: if (!running && !root._destroying) running = true
         stdout: SplitParser {
@@ -199,6 +226,9 @@ Singleton {
         id: updateConnectionType
         property string buffer
         command: ["sh", "-c", "nmcli -t -f TYPE,STATE d status && nmcli -t -f CONNECTIVITY g"]
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         running: false
         function startCheck() {
             buffer = "";
@@ -248,6 +278,9 @@ Singleton {
     Process {
         id: updateNetworkName
         command: ["sh", "-c", "nmcli -t -f NAME c show --active | head -1"]
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         running: false
         stdout: SplitParser {
             onRead: data => {
@@ -260,6 +293,9 @@ Singleton {
         id: updateNetworkStrength
         running: false
         command: ["sh", "-c", "nmcli -f IN-USE,SIGNAL,SSID device wifi | awk '/^\\*/{if (NR!=1) {print $2}}'"]
+        environment:({
+            "PATH": Config.subprocessPath()
+        })
         stdout: SplitParser {
             onRead: data => {
                 root.networkStrength = parseInt(data);
@@ -272,6 +308,7 @@ Singleton {
         command: ["nmcli", "radio", "wifi"]
         Component.onCompleted: running = true
         environment: ({
+            "PATH": Config.subprocessPath(),
             LANG: "C",
             LC_ALL: "C"
         })
@@ -287,6 +324,7 @@ Singleton {
         running: false
         command: ["nmcli", "-g", "ACTIVE,SIGNAL,FREQ,SSID,BSSID,SECURITY", "d", "w"]
         environment: ({
+            "PATH": Config.subprocessPath(),
             LANG: "C",
             LC_ALL: "C"
         })

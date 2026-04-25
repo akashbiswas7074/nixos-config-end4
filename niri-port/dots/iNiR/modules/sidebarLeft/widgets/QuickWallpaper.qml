@@ -44,7 +44,7 @@ Item {
     Process {
         id: scanProc
         // Use %C@ (ctime - when file was added/changed) instead of %T@ (mtime - content modification)
-        command: ["fish", "-c", `find '${root.wallpapersPath}' -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.avif' -o -iname '*.bmp' -o -iname '*.svg' \\) -printf '%C@\\t%p\\n'`]
+        command: ["bash", "-c", Config.subprocessPathShExport() + `exec fish -c "find '${root.wallpapersPath}' -maxdepth 1 -type f \\( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.avif' -o -iname '*.bmp' -o -iname '*.svg' \\) -printf '%C@\\t%p\\n'"`]
         stdout: SplitParser {
             splitMarker: ""
             onRead: data => {

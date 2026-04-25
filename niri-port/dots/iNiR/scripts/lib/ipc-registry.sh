@@ -2,8 +2,8 @@
 # Auto-generated from QML IpcHandler declarations + docs/IPC.md metadata.
 # Do not edit manually.
 # Regenerate: python3 scripts/lib/generate-ipc-registry.py
-# IPC.md hash: f3dd1f8bcde8479a
-# Targets: 45
+# IPC.md hash: 37895a2c5723fcdd
+# Targets: 46
 
 declare -gA IPC_TARGET_DESC=(
   [ai]="AI chat service. Multi-provider (Gemini, OpenAI, Mistral) with tool support."
@@ -33,6 +33,7 @@ declare -gA IPC_TARGET_DESC=(
   [overview]="Toggle the workspace overview panel. The one with all your windows looking tiny and organized."
   [packageSearch]="Package search service. Searches pacman repos and installed packages."
   [panelFamily]="Switch between panel styles. ii supports two visual styles: Material ii (default) and Waffle (Windows 11-like)."
+  [recordingOsd]="Recording status on-screen indicator."
   [region]="Region selection tools. Screenshots, OCR, recording. Draw a box, get stuff done."
   [search]="Waffle start menu / search."
   [session]="Power menu. Logout, suspend, reboot, shutdown. The \"I'm done for today\" buttons."
@@ -81,6 +82,7 @@ declare -gA IPC_TARGET_FAMILY=(
   [overview]="shared"
   [packageSearch]="shared"
   [panelFamily]="shared"
+  [recordingOsd]="shared"
   [region]="shared"
   [search]="waffle"
   [session]="shared"
@@ -129,6 +131,7 @@ declare -gA IPC_TARGET_FUNCTIONS=(
   [overview]="toggle close open toggleReleaseInterrupt clipboardToggle actionOpen"
   [packageSearch]="search results"
   [panelFamily]="cycle set"
+  [recordingOsd]="toggle show hide"
   [region]="screenshot search googleLens ocr record recordWithSound"
   [search]="toggle close open"
   [session]="toggle close open"
@@ -233,6 +236,9 @@ declare -gA IPC_FUNCTION_DESC=(
   ["packageSearch:results"]="Print current search results"
   ["panelFamily:cycle"]="Cycle to next panel family (ii → waffle → ii)"
   ["panelFamily:set"]="Set specific family (\"ii\" or \"waffle\")"
+  ["recordingOsd:toggle"]="Toggle recording OSD"
+  ["recordingOsd:show"]="Show recording OSD"
+  ["recordingOsd:hide"]="Hide recording OSD"
   ["region:screenshot"]="Take a region screenshot"
   ["region:search"]="Image search (Google Lens)"
   ["region:googleLens"]="Start a region capture for Google Lens"
@@ -340,8 +346,8 @@ bind "Super+Shift+A" { spawn "inir" "region" "search"; }'
   [ytmusic]='bind "Mod+M+Space" { spawn "inir" "ytmusic" "playPause"; }'
 )
 
-IPC_ALL_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions keyboard lock mediaControls minimize mpris notifications osd osdVolume osk overlay overview packageSearch panelFamily region search session settings shellUpdate sidebarLeft sidebarRight taskview tiling voiceSearch wactionCenter waffleAltSwitcher wallpaperSelector wbar wnotificationCenter wwidgets ytmusic zoom)
-IPC_SHARED_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions keyboard lock mediaControls minimize mpris notifications osdVolume osk overview packageSearch panelFamily region session settings shellUpdate sidebarLeft sidebarRight tiling voiceSearch wallpaperSelector ytmusic zoom)
+IPC_ALL_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions keyboard lock mediaControls minimize mpris notifications osd osdVolume osk overlay overview packageSearch panelFamily recordingOsd region search session settings shellUpdate sidebarLeft sidebarRight taskview tiling voiceSearch wactionCenter waffleAltSwitcher wallpaperSelector wbar wnotificationCenter wwidgets ytmusic zoom)
+IPC_SHARED_TARGETS=(ai altSwitcher appCatalog audio bar brightness cheatsheet clipboard cliphistService closeConfirm controlPanel coverflowSelector gamemode globalActions keyboard lock mediaControls minimize mpris notifications osdVolume osk overview packageSearch panelFamily recordingOsd region session settings shellUpdate sidebarLeft sidebarRight tiling voiceSearch wallpaperSelector ytmusic zoom)
 IPC_II_TARGETS=(overlay)
 IPC_WAFFLE_TARGETS=(osd search taskview wactionCenter waffleAltSwitcher wbar wnotificationCenter wwidgets)
 
@@ -357,6 +363,7 @@ declare -gA IPC_KEBAB_ALIASES=(
   [osd-volume]=osdVolume
   [package-search]=packageSearch
   [panel-family]=panelFamily
+  [recording-osd]=recordingOsd
   [shell-update]=shellUpdate
   [sidebar-left]=sidebarLeft
   [sidebar-right]=sidebarRight

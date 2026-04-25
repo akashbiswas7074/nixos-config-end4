@@ -122,6 +122,7 @@ Region tools dependencies.
 | `grim` | Screenshots |
 | `slurp` | Region selection |
 | `swappy` | Screenshot editor |
+| `satty` | Screenshot editor (alternative to swappy) |
 | `tesseract` | OCR engine |
 | `tesseract-data-eng` | English OCR data |
 | `wf-recorder` | Screen recording |

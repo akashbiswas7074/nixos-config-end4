@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.modules.common
+import qs.modules.common.functions
 import qs.services
 
 /**
@@ -232,9 +233,13 @@ Singleton {
     // State persistence - write via process
     Process {
         id: saveProcess
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: [
             "bash",
             "-c",
+            Config.subprocessPathShExport() +
             "mkdir -p ~/.local/state/quickshell/user\n" +
             "echo " + (root._manualActive ? "1" : "0") + " > " + root._stateFile
         ]
@@ -274,7 +279,11 @@ Singleton {
     // Initial setup
     Component.onCompleted: {
         root._log("[GameMode] Service starting...")
-        Quickshell.execDetached(["mkdir", "-p", Quickshell.env("HOME") + "/.local/state/quickshell/user"])
+        const d = Quickshell.env("HOME") + "/.local/state/quickshell/user"
+        Quickshell.execDetached([
+            "bash", "-c",
+            Config.subprocessPathShExport() + "mkdir -p '" + StringUtils.shellSingleQuoteEscape(d) + "'"
+        ])
         initTimer.restart()
     }
 
@@ -324,6 +333,7 @@ Singleton {
         niriAnimProcess.command = [
             "bash",
             "-c",
+            Config.subprocessPathShExport() +
             "if [ -f \"" + targetFile + "\" ]; then " + sedExpr + " \"" + targetFile + "\"; " +
             "else " + sedExpr + " \"" + fallbackFile + "\"; fi\n" +
             "niri msg action reload-config"
@@ -333,6 +343,9 @@ Singleton {
 
     Process {
         id: niriAnimProcess
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (code, status) => {
             if (code === 0) {
                 root._log("[GameMode] Niri animations updated")
@@ -408,9 +421,13 @@ Singleton {
 
     Process {
         id: discoverOverlayStopProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: [
             "bash",
             "-c",
+            Config.subprocessPathShExport() +
             "systemctl --user stop " + root._discoverOverlayServiceName + " 2>/dev/null; " +
             "pkill -x discover-overlay 2>/dev/null; true"
         ]
@@ -421,6 +438,9 @@ Singleton {
 
     Process {
         id: discoverOverlayStartProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: [
             "systemctl",
             "--user",

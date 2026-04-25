@@ -247,11 +247,13 @@ Button {
                     action: () => {
                         const targetPath = root.imageData.is_nsfw ? root.nsfwPath : root.downloadPath;
                         const localPath = `${targetPath}/${root.fileName}`;
-                        Quickshell.execDetached(["bash", "-c", 
-                            `mkdir -p '${targetPath}' && curl '${root.imageData.file_url}' -o '${localPath}' && notify-send '${Translation.tr("Download complete")}' '${localPath}' -a 'Shell'`
+                        const pathPre = Config.subprocessPathShExport();
+                        Quickshell.execDetached(["bash", "-c",
+                            pathPre +
+                            `mkdir -p '${targetPath}' && curl -fL '${root.imageData.file_url}' -o '${localPath}' && notify-send '${Translation.tr("Download complete")}' '${localPath}' -a 'Shell'`
                         ])
                         if (Config.options?.sidebar?.openFolderOnDownload ?? false)
-                            Quickshell.execDetached(["xdg-open", targetPath])
+                            Quickshell.execDetached(["bash", "-c", pathPre + `exec xdg-open '${targetPath.replace(/'/g, "'\\''")}'`])
                     }
                 },
                 {
@@ -262,8 +264,11 @@ Button {
                         const targetPath = root.imageData.is_nsfw ? root.nsfwPath : root.downloadPath;
                         const localPath = `${targetPath}/${root.fileName}`;
                         const mode = Appearance.m3colors.darkmode ? "dark" : "light";
+                        const wScript = String(Directories.wallpaperSwitchScriptPath ?? "").replace(/'/g, "'\\''");
+                        const pathPre = Config.subprocessPathShExport();
                         Quickshell.execDetached(["bash", "-c",
-                            `mkdir -p '${targetPath}' && curl -sSL '${root.imageData.file_url}' -o '${localPath}' && '${Directories.wallpaperSwitchScriptPath}' --image '${localPath}' --mode '${mode}'`
+                            pathPre +
+                            `mkdir -p '${targetPath}' && curl -fSL '${root.imageData.file_url}' -o '${localPath}' && exec '${wScript}' --image '${localPath}' --mode '${mode}'`
                         ])
                     }
                 }

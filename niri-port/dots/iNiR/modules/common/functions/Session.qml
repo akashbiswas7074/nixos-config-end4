@@ -50,7 +50,7 @@ Singleton {
     }
 
     function lock() {
-        Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "lock", "activate"]);
+        Config.execInirDetached(["lock", "activate"]);
     }
 
     function suspend() {

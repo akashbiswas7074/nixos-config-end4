@@ -6,6 +6,6 @@ QuickToggleModel {
     name: Translation.tr("Game mode")
     toggled: GameMode.active
     icon: "gamepad"
-    mainAction: () => GameMode.toggle()
+    mainAction: () => Config.execInirDetached(["gamemode", "toggle"])
     tooltipText: Translation.tr("Game mode")
 }

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import Quickshell.Io
 import qs
 import qs.modules.common
 import qs.modules.common.widgets
@@ -11,6 +12,10 @@ import qs.services
 Item {
     id: root
     implicitHeight: row.implicitHeight
+    property bool nightLightLocalActive: Hyprsunset.active ?? false
+    property string _settingsCommand: ""
+    property string _lockCommand: ""
+    property string _nightToggleCommand: ""
 
     function toggleDark(): void {
         const current = Config.options?.appearance?.customTheme?.darkmode ?? true
@@ -18,7 +23,133 @@ Item {
     }
 
     function openSettings(): void {
-        Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+        const inirEsc = StringUtils.shellSingleQuoteEscape(`${Quickshell.env("HOME")}/.nix-profile/bin/inir`)
+        root._settingsCommand = Config.subprocessPathShExport()
+            + `'${inirEsc}' settings >/tmp/inir-settings.log 2>&1; `
+            + "echo SETTINGS:TRIGGERED"
+        settingsProc.command = ["bash", "-c", root._settingsCommand]
+        settingsProc.running = true
+    }
+
+    function toggleDnd(): void {
+        const before = Notifications.silent ?? false
+        Notifications.toggleSilent()
+        const after = Notifications.silent ?? false
+        console.log("[ControlsCard] DND toggle", before, "->", after)
+    }
+
+    function toggleGameMode(): void {
+        const before = GameMode.active ?? false
+        GameMode.toggle()
+        const after = GameMode.active ?? false
+        console.log("[ControlsCard] GameMode toggle", before, "->", after)
+    }
+
+    function toggleNightLight(): void {
+        console.log("[ControlsCard] toggleNightLight() process-runner")
+        if (CompositorService.isNiri) {
+            const next = !root.nightLightLocalActive
+            root.nightLightLocalActive = next
+            const temp = (Config.options?.light?.night?.colorTemperature ?? 5000)
+            if (next) {
+                root._nightToggleCommand = Config.subprocessPathShExport()
+                    + "pkill -x wlsunset >/dev/null 2>&1; "
+                    + "WLSUNSET_BIN=\"$HOME/.nix-profile/bin/wlsunset\"; "
+                    + "[ -x \"$WLSUNSET_BIN\" ] || WLSUNSET_BIN=\"wlsunset\"; "
+                    + "nohup \"$WLSUNSET_BIN\" -T 6500 -t " + temp + " -s 00:00 -S 23:59 >/tmp/inir-nightlight.log 2>&1 < /dev/null & "
+                    + "sleep 0.2; pidof wlsunset >/dev/null 2>&1 && echo NIGHT:ON || echo NIGHT:OFF"
+            } else {
+                root._nightToggleCommand = Config.subprocessPathShExport()
+                    + "pkill -x wlsunset >/dev/null 2>&1; "
+                    + "sleep 0.2; pidof wlsunset >/dev/null 2>&1 && echo NIGHT:ON || echo NIGHT:OFF"
+            }
+            nightToggleProc.command = ["bash", "-c", root._nightToggleCommand]
+            nightToggleProc.running = true
+            Hyprsunset.active = next
+            return
+        }
+        Hyprsunset.toggle()
+        root.nightLightLocalActive = Hyprsunset.active ?? false
+    }
+
+    Process {
+        id: nightToggleProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const txt = text.trim()
+                if (txt.length > 0)
+                    console.log("[ControlsCard] nightToggle stdout:", txt)
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                const txt = text.trim()
+                if (txt.length > 0)
+                    console.warn("[ControlsCard] nightToggle stderr:", txt)
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            console.log("[ControlsCard] nightToggle exit:", exitCode, exitStatus)
+            Hyprsunset.fetchState()
+        }
+    }
+
+    Process {
+        id: lockProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const txt = text.trim()
+                if (txt.length > 0)
+                    console.log("[ControlsCard] lock stdout:", txt)
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                const txt = text.trim()
+                if (txt.length > 0)
+                    console.warn("[ControlsCard] lock stderr:", txt)
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            console.log("[ControlsCard] lock exit:", exitCode, exitStatus)
+        }
+    }
+
+    Process {
+        id: settingsProc
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const txt = text.trim()
+                if (txt.length > 0)
+                    console.log("[ControlsCard] settings stdout:", txt)
+            }
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                const txt = text.trim()
+                if (txt.length > 0)
+                    console.warn("[ControlsCard] settings stderr:", txt)
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            console.log("[ControlsCard] settings exit:", exitCode, exitStatus)
+        }
+    }
+
+    function lockScreen(): void {
+        const inirEsc = StringUtils.shellSingleQuoteEscape(`${Quickshell.env("HOME")}/.nix-profile/bin/inir`)
+        root._lockCommand = Config.subprocessPathShExport()
+            + `'${inirEsc}' lock activate >/tmp/inir-lock.log 2>&1; `
+            + "echo LOCK:TRIGGERED"
+        lockProc.command = ["bash", "-c", root._lockCommand]
+        lockProc.running = true
+    }
+
+    Connections {
+        target: Hyprsunset
+        function onActiveChanged(): void {
+            root.nightLightLocalActive = Hyprsunset.active ?? root.nightLightLocalActive
+        }
     }
 
     RowLayout {
@@ -31,32 +162,32 @@ Item {
         Item { Layout.fillWidth: true }
 
         // Toggles
-        Toggle { 
+        Toggle {
             btnIcon: "dark_mode"
             tip: Translation.tr("Dark mode")
             active: Appearance.m3colors?.darkmode ?? false
-            onClicked: root.toggleDark()
+            runAction: () => root.toggleDark()
             visible: Config.options?.sidebar?.widgets?.controlsCard?.showDarkMode ?? true
         }
-        Toggle { 
+        Toggle {
             btnIcon: "do_not_disturb_on"
             tip: Translation.tr("Do not disturb")
             active: Notifications.silent ?? false
-            onClicked: Notifications.toggleSilent()
+            runAction: () => root.toggleDnd()
             visible: Config.options?.sidebar?.widgets?.controlsCard?.showDnd ?? true
         }
-        Toggle { 
+        Toggle {
             btnIcon: "nightlight"
             tip: Translation.tr("Night light")
-            active: Hyprsunset.active ?? false
-            onClicked: Hyprsunset.toggle()
+            active: CompositorService.isNiri ? root.nightLightLocalActive : (Hyprsunset.active ?? false)
+            runAction: () => root.toggleNightLight()
             visible: Config.options?.sidebar?.widgets?.controlsCard?.showNightLight ?? true
         }
-        Toggle { 
+        Toggle {
             btnIcon: "sports_esports"
-            tip: GameMode.active ? Translation.tr("Game mode (active)") : Translation.tr("Game mode")
+            tip: (GameMode.active ?? false) ? Translation.tr("Game mode (active)") : Translation.tr("Game mode")
             active: GameMode.active ?? false
-            onClicked: GameMode.toggle()
+            runAction: () => root.toggleGameMode()
             visible: Config.options?.sidebar?.widgets?.controlsCard?.showGameMode ?? true
         }
 
@@ -73,10 +204,10 @@ Item {
         }
 
         // Actions
-        Action { btnIcon: "wifi"; tip: Translation.tr("Network"); onClicked: function() { GlobalStates.sidebarLeftOpen = false; GlobalStates.requestWifiDialog = true }; visible: Config.options?.sidebar?.widgets?.controlsCard?.showNetwork ?? true }
-        Action { btnIcon: "bluetooth"; tip: Translation.tr("Bluetooth"); onClicked: function() { GlobalStates.sidebarLeftOpen = false; GlobalStates.requestBluetoothDialog = true }; visible: Config.options?.sidebar?.widgets?.controlsCard?.showBluetooth ?? true }
-        Action { btnIcon: "settings"; tip: Translation.tr("Settings"); onClicked: root.openSettings(); visible: Config.options?.sidebar?.widgets?.controlsCard?.showSettings ?? true }
-        Action { btnIcon: "lock"; tip: Translation.tr("Lock"); onClicked: Session.lock(); visible: Config.options?.sidebar?.widgets?.controlsCard?.showLock ?? true }
+        Action { btnIcon: "wifi"; tip: Translation.tr("Network"); runAction: function() { GlobalStates.sidebarLeftOpen = false; GlobalStates.requestWifiDialog = true }; visible: Config.options?.sidebar?.widgets?.controlsCard?.showNetwork ?? true }
+        Action { btnIcon: "bluetooth"; tip: Translation.tr("Bluetooth"); runAction: function() { GlobalStates.sidebarLeftOpen = false; GlobalStates.requestBluetoothDialog = true }; visible: Config.options?.sidebar?.widgets?.controlsCard?.showBluetooth ?? true }
+        Action { btnIcon: "settings"; tip: Translation.tr("Settings"); runAction: () => root.openSettings(); visible: Config.options?.sidebar?.widgets?.controlsCard?.showSettings ?? true }
+        Action { btnIcon: "lock"; tip: Translation.tr("Lock"); runAction: () => root.lockScreen(); visible: Config.options?.sidebar?.widgets?.controlsCard?.showLock ?? true }
 
         Item { Layout.fillWidth: true }
     }
@@ -85,6 +216,7 @@ Item {
         property string btnIcon
         property string tip
         property bool active: false
+        property var runAction
 
         implicitWidth: 40
         implicitHeight: 40
@@ -99,6 +231,12 @@ Item {
             : Appearance.inirEverywhere ? Appearance.inir.colLayer1Active
             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive
             : Appearance.colors.colLayer1Active
+
+        onClicked: {
+            console.log("[ControlsCard] toggle clicked", btnIcon)
+            if (runAction)
+                runAction()
+        }
 
         Behavior on colBackground {
             enabled: Appearance.animationsEnabled
@@ -131,6 +269,7 @@ Item {
     component Action: RippleButton {
         property string btnIcon
         property string tip
+        property var runAction
 
         implicitWidth: 40
         implicitHeight: 40
@@ -143,6 +282,12 @@ Item {
         colRipple: Appearance.angelEverywhere ? Appearance.angel.colGlassCardActive
             : Appearance.inirEverywhere ? Appearance.inir.colLayer1Active 
             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : Appearance.colors.colLayer1Active
+
+        onClicked: {
+            console.log("[ControlsCard] action clicked", btnIcon)
+            if (runAction)
+                runAction()
+        }
 
         contentItem: Item {
             MaterialSymbol {

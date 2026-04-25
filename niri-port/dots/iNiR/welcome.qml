@@ -1156,7 +1156,7 @@ Scope {
                 buttonRadius: Appearance.rounding.small
                 colBackground: Appearance.colors.colLayer2
                 colBackgroundHover: Appearance.colors.colLayer2Hover
-                onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+                onClicked: Config.execInirDetached(["settings"])
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 8

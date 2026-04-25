@@ -850,6 +850,7 @@ Singleton {
         property string directory
         property string _size: ""
         environment: ({
+            "PATH": Config.subprocessPath(),
             "INIR_VENV": Quickshell.env("INIR_VENV") || Quickshell.env("HOME") + "/.local/state/quickshell/.venv",
             "ILLOGICAL_IMPULSE_VIRTUAL_ENV": Quickshell.env("INIR_VENV") || Quickshell.env("HOME") + "/.local/state/quickshell/.venv"
         })
@@ -873,6 +874,9 @@ Singleton {
 
     Process {
         id: thumbgenFallbackProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: root.thumbnailGenerated(thumbgenProc.directory)
     }
 
@@ -880,6 +884,9 @@ Singleton {
         id: _singleThumbProc
         property string _key: ""
         property string _filePath: ""
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             if (exitCode === 1)
                 root.thumbnailGeneratedFile(_singleThumbProc._filePath)

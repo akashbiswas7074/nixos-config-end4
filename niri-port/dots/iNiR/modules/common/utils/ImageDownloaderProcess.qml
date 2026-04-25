@@ -7,6 +7,10 @@ import qs.modules.common.functions
 Process {
     id: root
 
+    environment: ({
+        "PATH": Config.subprocessPath()
+    })
+
     signal done(string path, int width, int height);
     required property string filePath;
     required property string sourceUrl;

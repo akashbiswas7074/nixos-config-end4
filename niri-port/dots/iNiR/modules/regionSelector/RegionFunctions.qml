@@ -4,6 +4,76 @@ import Quickshell
 Singleton {
     id: root
 
+    function _near(a, b, tol) {
+        return Math.abs(a - b) <= tol;
+    }
+
+    /// Niri `logical` rect vs Quickshell `ShellScreen` (may differ when Qt uses buffer pixels vs logical size).
+    function niriLogicalMatchesScreen(screen, L) {
+        if (!L || !screen) {
+            return false;
+        }
+        const lx = L.x;
+        const ly = L.y;
+        const lw = L.width;
+        const lh = L.height;
+        const sx = screen.x;
+        const sy = screen.y;
+        const sw = screen.width;
+        const sh = screen.height;
+        if (lx !== sx || ly !== sy) {
+            return false;
+        }
+        if (lw === sw && lh === sh) {
+            return true;
+        }
+        const sc = typeof L.scale === "number" && L.scale > 0 ? L.scale : 1;
+        const pw = Math.round(lw * sc);
+        const ph = Math.round(lh * sc);
+        if (_near(pw, sw, 2) && _near(ph, sh, 2)) {
+            return true;
+        }
+        if (lw === Math.round(sw / sc) && lh === Math.round(sh / sc)) {
+            return true;
+        }
+        return false;
+    }
+
+    /// Resolves a head name for `grim -o` on Niri: must match `niri msg -j outputs` keys / wlr output names.
+    function niriGrimOutputName(screen, outputs) {
+        if (!screen) {
+            return "";
+        }
+        if (!outputs || typeof outputs !== "object") {
+            // Avoid guessing with Qt's screen name before Niri outputs arrive.
+            // Passing an unknown value to `grim -o` fails the capture.
+            return "";
+        }
+        const preferred = screen.name || "";
+        if (preferred.length > 0 && outputs[preferred] !== undefined) {
+            return preferred;
+        }
+        const keys = Object.keys(outputs);
+        for (let i = 0; i < keys.length; ++i) {
+            const k = keys[i];
+            const L = outputs[k].logical;
+            if (!L) {
+                continue;
+            }
+            if (root.niriLogicalMatchesScreen(screen, L)) {
+                return k;
+            }
+        }
+        if (keys.length === 1) {
+            return keys[0];
+        }
+        if (keys.length === 0) {
+            return preferred;
+        }
+        // Several heads but no geometry / name match — do not guess (caller avoids `grim` without `-o`).
+        return "";
+    }
+
     function intersectionOverUnion(regionA, regionB) {
         // region: { at: [x, y], size: [w, h] }
         if (!regionA || !regionB

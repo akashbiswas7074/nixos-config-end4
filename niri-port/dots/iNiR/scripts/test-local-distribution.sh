@@ -35,7 +35,11 @@ done < "$runtime_root/sdata/runtime-payload-dirs.txt"
 
 if [[ -f "$runtime_root/Makefile" ]]; then
     step "make install dry run"
-    make -n install PREFIX=/tmp/inir-stage-test -C "$runtime_root" >/dev/null
+    if command -v make >/dev/null 2>&1; then
+        make -n install PREFIX=/tmp/inir-stage-test -C "$runtime_root" >/dev/null
+    else
+        printf 'WARN: make not found; skipping make install dry run\n' >&2
+    fi
 fi
 
 if [[ -d "$runtime_root/distro/arch" ]]; then

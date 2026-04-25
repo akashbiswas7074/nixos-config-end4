@@ -134,7 +134,8 @@ in
   users.users.akashbiswas = {
     isNormalUser = true;
     description = "akash Biswas";
-    extraGroups = [ "networkmanager" "wheel" ];
+    # "video" — brightnessctl / backlight; "i2c" — ddcutil for external monitor brightness
+    extraGroups = [ "networkmanager" "wheel" "video" "i2c" ];
   };
 
   programs.firefox.enable = true;
@@ -152,8 +153,10 @@ in
     wget
     git
     vscode
+    # cursor
     # code-cursor
     google-chrome
+antigravity
     foot          
     kitty         
     rofi 

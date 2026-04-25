@@ -98,7 +98,8 @@ Item {
                 tooltipText: Translation.tr("Copy all")
                 enabled: textArea.text.length > 0
                 onClicked: {
-                    Quickshell.execDetached(["wl-copy", textArea.text])
+                    Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + "exec wl-copy \"$1\"",
+                        "_", textArea.text])
                     copiedToast.show()
                 }
             }

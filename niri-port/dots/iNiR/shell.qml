@@ -5,7 +5,10 @@
 //@ pragma Env QT_LOGGING_RULES=quickshell.dbus.properties=false
 //@ pragma Env QT_QUICK_CONTROLS_STYLE=Basic
 //@ pragma Env QT_QUICK_FLICKABLE_WHEEL_DECELERATION=10000
-//@ pragma Env QSG_RENDER_LOOP=threaded
+// "basic" is safer than "threaded" on some NVIDIA + Wayland setups (Quickshell segfaults); override in env if you need threaded
+//@ pragma Env QSG_RENDER_LOOP=basic
+// Prefer OpenGL RHI; Vulkan on Wayland+NV can crash; see https://doc.qt.io/qt-6/qtquick-visualcanvas-scenegraph.html#scene-graph-backend
+//@ pragma Env QSG_RHI_BACKEND=gl
 // Launcher keeps QT_SCALE_FACTOR=1; shell scaling lives in appearance.typography.sizeScale
 // DISABLED: webapps — requires quickshell-webengine rebuild
 //-@ pragma Env QTWEBENGINE_CHROMIUM_FLAGS=--disable-features=ThirdPartyCookieBlocking,StorageAccessAPI
@@ -190,15 +193,13 @@ ShellRoot {
 
             if (isWaffle) {
                 // Waffle always opens its own Win11-style settings window
-                Quickshell.execDetached([Quickshell.shellPath("scripts/inir"),
-                    "waffle-settings-window"])
+                Config.execInirDetached(["waffle-settings-window"])
             } else if (Config.options?.settingsUi?.overlayMode ?? false) {
                 // ii overlay mode — toggle inline panel
                 GlobalStates.settingsOverlayOpen = !GlobalStates.settingsOverlayOpen
             } else {
                 // ii window mode (default) — launch separate process
-                Quickshell.execDetached([Quickshell.shellPath("scripts/inir"),
-                    "settings-window"])
+                Config.execInirDetached(["settings-window"])
             }
         }
         function toggle(): void {

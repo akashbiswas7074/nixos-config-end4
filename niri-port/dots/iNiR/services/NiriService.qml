@@ -98,6 +98,9 @@ Singleton {
     Process {
         id: fetchOutputsProcess
         command: ["niri", "msg", "-j", "outputs"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
 
         stdout: StdioCollector {
             id: fetchOutputsCollector

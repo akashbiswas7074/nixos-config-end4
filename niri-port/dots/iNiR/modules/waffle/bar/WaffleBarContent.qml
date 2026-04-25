@@ -62,7 +62,7 @@ Rectangle {
                 iconName: "settings",
                 text: Translation.tr("Taskbar settings"),
                 action: () => {
-                    Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+                    Config.execInirDetached(["settings"])
                 }
             }
         ]

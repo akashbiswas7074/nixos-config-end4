@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.modules.common
 import qs.modules.common.functions
 
 /**
@@ -119,6 +120,9 @@ Singleton {
     Process {
         id: enrichedBindsLoader
         command: ["python3", root.niriConfigScript, "get-binds"]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         running: false
 
         stdout: StdioCollector {
@@ -153,6 +157,9 @@ Singleton {
     // ── setBind process ───────────────────────────────────────────────────
     Process {
         id: setBindProcess
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         running: false
 
         stdout: StdioCollector {
@@ -194,6 +201,9 @@ Singleton {
     // ── removeBind process ────────────────────────────────────────────────
     Process {
         id: removeBindProcess
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         running: false
 
         stdout: StdioCollector {

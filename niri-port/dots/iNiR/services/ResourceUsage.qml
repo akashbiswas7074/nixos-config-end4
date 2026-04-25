@@ -448,7 +448,10 @@ Singleton {
                 LANG: "C",
                 LC_ALL: "C"
             })
-        command: ["bash", "-c", "lscpu | grep 'CPU max MHz' | awk '{print $4}'"]
+        command: [
+            Config.nixosSystemProfileBin + "/bash", "-c",
+            Config.nixosSystemProfileBin + "/lscpu | " + Config.nixosSystemProfileBin + "/grep 'CPU max MHz' | " + Config.nixosSystemProfileBin + "/awk '{print $4}'"
+        ]
         running: false
         stdout: StdioCollector {
             id: outputCollector
@@ -465,7 +468,7 @@ Singleton {
 
     Process {
         id: diskProc
-        command: ["df", "-B1", "/"]
+        command: [Config.nixosSystemProfileBin + "/df", "-B1", "/"]
         running: false
         stdout: StdioCollector {
             id: diskCollector

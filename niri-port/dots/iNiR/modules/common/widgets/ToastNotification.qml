@@ -103,6 +103,9 @@ Item {
                 Process {
                     id: copyProcess
 
+                    environment: ({
+                        "PATH": Config.subprocessPath()
+                    })
                     command: ["wl-copy", root.message]
                 }
 

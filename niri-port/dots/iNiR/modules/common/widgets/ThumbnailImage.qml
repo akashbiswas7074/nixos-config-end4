@@ -83,6 +83,9 @@ StyledImage {
     }
     Process {
         id: thumbnailGeneration
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: {
             const maxSize = Images.thumbnailSizes[root.thumbnailSizeName];
             const thumbPath = FileUtils.trimFileProtocol(root.thumbnailPath);

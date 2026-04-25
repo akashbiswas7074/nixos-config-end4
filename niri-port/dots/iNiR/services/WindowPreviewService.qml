@@ -51,6 +51,9 @@ Singleton {
     Process {
         id: clipboardSaveProcess
         property bool saveOk: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         // Dynamically set command before running
         onExited: (exitCode) => {
             clipboardSaveProcess.saveOk = (exitCode === 0)
@@ -63,6 +66,9 @@ Singleton {
 
     Process {
         id: clipboardRestoreProcess
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: {
             // Cleanup temp file
             if (root._savedClipFile.length > 0) {

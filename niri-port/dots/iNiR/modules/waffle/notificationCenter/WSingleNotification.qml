@@ -168,6 +168,9 @@ MouseArea {
 
             Process {
                 id: copyHeaderProcess
+                environment: ({
+                    "PATH": Config.subprocessPath()
+                })
                 command: ["wl-copy", root.notification?.body ?? ""]
                 onExited: (code, status) => {
                     if (code === 0) {

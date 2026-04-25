@@ -481,7 +481,7 @@ Item {
                     if (CompositorService.isHyprland) {
                         Hyprland.dispatch("reload");
                     } else if (CompositorService.isNiri) {
-                        Quickshell.execDetached(["niri", "msg", "action", "load-config-file"]);
+                        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + "exec niri msg action load-config-file"]);
                     }
                     Quickshell.execDetached(["bash", Quickshell.shellPath("scripts/restart-shell.sh")]);
                 }
@@ -522,10 +522,8 @@ Item {
                             const w = wins[i]
                             if (w.title === "illogical-impulse Settings" && w.app_id === "org.quickshell") {
                                 console.log("[SidebarRight] Found existing settings window, focusing it");
+                                NiriService.focusWindow(w.id)
                                 GlobalStates.sidebarRightOpen = false;
-                                Qt.callLater(() => {
-                                    NiriService.focusWindow(w.id)
-                                })
                                 return
                             }
                         }
@@ -533,10 +531,8 @@ Item {
                     }
                     
                     console.log("[SidebarRight] Opening new settings window via IPC");
+                    Config.execInirDetached(["settings"]);
                     GlobalStates.sidebarRightOpen = false;
-                    Qt.callLater(() => {
-                        Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"]);
-                    })
                 }
                 StyledToolTip {
                     position: "left"

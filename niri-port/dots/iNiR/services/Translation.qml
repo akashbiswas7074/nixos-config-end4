@@ -107,6 +107,9 @@ Singleton {
         signal languagesScanned(var languages)
 
         command: ["find", translationScanner.translationsDir, "-name", "*.json", "-exec", "basename", "{}", ".json", ";"]
+         environment: ({
+            "PATH": Config.subprocessPath()
+        })
         running: false
 
         stdout: StdioCollector {

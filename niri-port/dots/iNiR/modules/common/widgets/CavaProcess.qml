@@ -41,6 +41,9 @@ Item {
         id: configGen
         running: false
         command: ["bash", root.scriptPath, root.configPath]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (code, status) => {
             if (code === 0 && root.active) {
                 if (!cavaProc.running) {
@@ -53,7 +56,11 @@ Item {
     Process {
         id: cavaProc
         running: false
-        command: ["cava", "-p", root.configPath]
+        command: ["bash", "-c", Config.subprocessPathShExport()
+            + `exec cava -p '${StringUtils.shellSingleQuoteEscape(root.configPath)}'`]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onRunningChanged: {
             if (!running) root.points = []
         }

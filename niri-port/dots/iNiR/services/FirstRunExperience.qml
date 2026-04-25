@@ -62,7 +62,7 @@ Singleton {
 
     Process {
         id: checkFirstRunProc
-        command: ["test", "-f", root.firstRunFilePath]
+        command: [Config.nixosSystemProfileBin + "/test", "-f", root.firstRunFilePath]
         onExited: (exitCode) => {
             if (exitCode !== 0) {
                 root._pendingFirstRun = true

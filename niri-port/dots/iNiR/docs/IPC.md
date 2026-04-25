@@ -422,6 +422,18 @@ On-screen volume indicator.
 
 ---
 
+### recordingOsd
+
+Recording status on-screen indicator.
+
+| Function | Description |
+|----------|-------------|
+| `toggle` | Toggle recording OSD |
+| `show` | Show recording OSD |
+| `hide` | Hide recording OSD |
+
+---
+
 ### cliphistService
 
 Clipboard history service. The backend that makes clipboard panel work. You probably don't need to call this directly.

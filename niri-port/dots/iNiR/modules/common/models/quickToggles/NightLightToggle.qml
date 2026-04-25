@@ -16,7 +16,7 @@ QuickToggleModel {
     icon: auto ? "night_sight_auto" : "bedtime"
     
     mainAction: () => {
-        Hyprsunset.toggle()
+        Config.execInirDetached(["globalActions", "run", "toggle-nightlight", ""])
     }
     hasMenu: true
 

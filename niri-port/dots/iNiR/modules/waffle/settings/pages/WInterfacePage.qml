@@ -211,6 +211,9 @@ WSettingsPage {
     Process {
         id: recordingCapabilityProbe
         running: true
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: [Directories.recordScriptPath, "--probe-capabilities"]
         stdout: StdioCollector {
             id: recordingCapabilityCollector

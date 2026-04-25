@@ -101,7 +101,7 @@ Rectangle {
             icon: "settings"
             onClicked: {
                 GlobalStates.controlPanelOpen = false
-                Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+                Config.execInirDetached(["settings"])
             }
         }
 
@@ -109,7 +109,7 @@ Rectangle {
             icon: "lock"
             onClicked: {
                 GlobalStates.controlPanelOpen = false
-                Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "lock", "activate"])
+                Config.execInirDetached(["lock", "activate"])
             }
         }
 

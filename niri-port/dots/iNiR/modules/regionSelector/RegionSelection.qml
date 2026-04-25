@@ -34,18 +34,13 @@ PanelWindow {
     readonly property bool useNiri: CompositorService.isNiri
 
     property string screenshotDir: Directories.screenshotTemp
-    property string imageSearchEngineBaseUrl: Config.options?.search?.imageSearch?.imageSearchEngineBaseUrl ?? "https://yandex.com/images/search?rpt=imageview&url="
+    property string imageSearchEngineBaseUrl: Config.options?.search?.imageSearch?.imageSearchEngineBaseUrl ?? "https://lens.google.com/uploadbyurl?url="
     property string fileUploadApiEndpoint: Config.options?.search?.imageSearch?.fileUploadApiEndpoint ?? "https://0x0.st"
     property string fileUploadApiFallback: Config.options?.search?.imageSearch?.fileUploadApiFallback ?? "https://litterbox.catbox.moe/resources/internals/api.php"
     property string fileUploadApiFallback2: Config.options?.search?.imageSearch?.fileUploadApiFallback2 ?? "https://catbox.moe/user/api.php"
     readonly property string effectiveImageSearchEngineBaseUrl: {
         const configured = imageSearchEngineBaseUrl ?? ""
-        if (configured === ""
-                || configured === "https://lens.google.com/uploadbyurl?url="
-                || configured === "https://www.google.com/searchbyimage?image_url=") {
-            return "https://yandex.com/images/search?rpt=imageview&url="
-        }
-        return configured
+        return configured === "" ? "https://lens.google.com/uploadbyurl?url=" : configured
     }
 
     // Tri-style color support
@@ -257,6 +252,65 @@ PanelWindow {
     property real regionX: Math.min(dragStartX, draggingX)
     property real regionY: Math.min(dragStartY, draggingY)
 
+    /// Wayland / grim output (Niri: match `niri msg -j outputs` when possible).
+    readonly property string grimOutputName: root.useNiri
+        ? RegionFunctions.niriGrimOutputName(root.screen, NiriService.outputs)
+        : (root.screen.name || "")
+    readonly property int _niriOutputCount: {
+        const o = NiriService.outputs;
+        return (o && typeof o === "object") ? Object.keys(o).length : 0;
+    }
+    readonly property string _homePathNoProto: FileUtils.trimFileProtocol(Directories.home)
+    readonly property string _grimToFileBash: {
+        const pathPre = Config.subprocessPathShExport();
+        const d = StringUtils.shellSingleQuoteEscape(root.screenshotDir);
+        const f = StringUtils.shellSingleQuoteEscape(root.screenshotPath);
+        const o = root.grimOutputName;
+        if (root.useNiri && root._niriOutputCount > 1 && (!o || o.length === 0)) {
+            const body = StringUtils.shellSingleQuoteEscape(
+                "Could not match this monitor to a Niri output for grim (multi-monitor). Try: niri msg -j outputs");
+            return pathPre + `notify-send 'Region selector' ${body} -a 'Region Selector' -t 6000; exit 3`;
+        }
+        const oArg = (o && o.length > 0) ? ` -o '${StringUtils.shellSingleQuoteEscape(o)}'` : "";
+        const grimCandidates = [
+            `${Config.nixosSystemProfileBin}/grim`,
+            `${root._homePathNoProto}/.nix-profile/bin/grim`,
+            `/etc/profiles/per-user/akashbiswas/bin/grim`,
+            "grim"
+        ].map(StringUtils.shellSingleQuoteEscape).join(" ");
+        return pathPre + `mkdir -p '${d}' && ` +
+            `g=''; for c in ${grimCandidates}; do if [[ "$c" == grim ]] || [[ -x "$c" ]]; then g="$c"; [[ "$c" != grim ]] && break; fi; done; ` +
+            `if [[ -z "$g" ]]; then notify-send 'Region search failed' 'grim binary not found' -a 'Region Selector' -t 5000; exit 127; fi; ` +
+            `if "$g"${oArg} '${f}' 2>/tmp/inir-grim.err; then exit 0; fi; ` +
+            `if "$g" '${f}' 2>>/tmp/inir-grim.err; then exit 0; fi; ` +
+            `err="$(${Config.nixosSystemProfileBin}/tail -n 1 /tmp/inir-grim.err 2>/dev/null)"; ` +
+            `if [[ -n "$err" ]]; then notify-send 'Region search failed' "$err" -a 'Region Selector' -t 5000; fi; ` +
+            `exit 1`;
+    }
+    property bool _retriedNiriScreencap: false
+
+    /// If `niri msg -j outputs` was not ready on first grim run, try again when JSON arrives.
+    Connections {
+        target: NiriService
+        function onOutputsChanged() {
+            if (!root.useNiri || root.screenshotReady) {
+                return;
+            }
+            if (screenshotProc.running) {
+                return;
+            }
+            const o = NiriService.outputs
+            if (!o || Object.keys(o).length === 0) {
+                return;
+            }
+            if (root._retriedNiriScreencap) {
+                return;
+            }
+            root._retriedNiriScreencap = true
+            Qt.callLater(() => { screenshotProc.running = true });
+        }
+    }
+
     Component.onCompleted: {
         root.screenshotReady = false
         screenshotProc.running = true
@@ -265,15 +319,32 @@ PanelWindow {
     Process {
         id: screenshotProc
         running: false
-        command: ["bash", "-c", `mkdir -p '${StringUtils.shellSingleQuoteEscape(root.screenshotDir)}' && grim -o '${StringUtils.shellSingleQuoteEscape(root.screen.name)}' '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}'`]
+        command: ["bash", "-c", root._grimToFileBash]
         onExited: (exitCode, exitStatus) => {
+            const o = NiriService.outputs
+            const haveOutputs = o && Object.keys(o).length > 0
+            const willRetryNiriScreencap = exitCode !== 0 && root.useNiri && !root._retriedNiriScreencap
+                && haveOutputs
             if (exitCode !== 0) {
                 root.screenshotReady = false
-                Quickshell.execDetached(["notify-send", "Region search failed", "grim failed to capture the screen" , "-a", "Region Selector", "-t", "4000"])
+                if (exitCode === 3) {
+                    // Bash already notified (ambiguous multi-monitor or similar)
+                } else if (willRetryNiriScreencap) {
+                    root._retriedNiriScreencap = true
+                    // Outputs may have loaded after the command was first bound; recapture with resolved name
+                    Qt.callLater(() => { screenshotProc.running = true });
+                } else if (root.useNiri && !haveOutputs) {
+                    // Wait for NiriService.onOutputsChanged (or next failure) instead of a false "grim failed" toast
+                } else {
+                    Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport()
+                        + `exec notify-send 'Region search failed' 'grim failed to capture the screen' -a 'Region Selector' -t 4000`])
+                }
             } else {
                 root.screenshotReady = true
             }
-            if (root.enableContentRegions) imageDetectionProcess.running = true;
+            if (root.enableContentRegions && (exitCode === 0 || !willRetryNiriScreencap)) {
+                imageDetectionProcess.running = true;
+            }
             root.preparationDone = !checkRecordingProc.running;
         }
     }
@@ -282,6 +353,9 @@ PanelWindow {
     Process {
         id: checkRecordingProc
         running: isRecording
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["pidof", "wf-recorder"]
         onExited: (exitCode, exitStatus) => {
             root.preparationDone = !screenshotProc.running
@@ -292,7 +366,8 @@ PanelWindow {
     onPreparationDoneChanged: {
         if (!preparationDone) return;
         if (root.isRecording && root.recordingShouldStop) {
-            Quickshell.execDetached([Directories.recordScriptPath]);
+            Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport()
+                + `exec bash '${StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath))}'`]);
             root.dismiss();
             return;
         }
@@ -301,6 +376,9 @@ PanelWindow {
 
     Process {
         id: imageDetectionProcess
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["bash", "-c", `${Directories.scriptsPath}/images/find-regions-venv.sh ` 
             + `--image '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' ` 
             + `--max-width ${Math.round(root.screen.width * root.falsePositivePreventionRatio)} ` 
@@ -351,31 +429,50 @@ PanelWindow {
         const screenshotSaveDir = StringUtils.shellSingleQuoteEscape(Directories.screenshotsPath)
         const uploadAndGetUrl = (filePath) => {
             const escaped = StringUtils.shellSingleQuoteEscape(filePath)
-            const primary = `curl -sf --max-time 10 -F file=@'${escaped}' ${root.fileUploadApiEndpoint}`
-            const fallback1 = `curl -s --max-time 15 -F reqtype=fileupload -F time=1h -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback}`
-            const fallback2 = `curl -s --max-time 15 -F reqtype=fileupload -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback2}`
-            // Try primary, then fallback1, then fallback2 if all fail or return empty/non-URL response
-            return `url=$(${primary} 2>/dev/null); if [[ -z "$url" || "$url" != http* ]]; then url=$(${fallback1}); fi; if [[ -z "$url" || "$url" != http* ]]; then url=$(${fallback2}); fi; echo "$url"`
+            const primary = `"$CURL_BIN" -sf --max-time 10 -F file=@'${escaped}' ${root.fileUploadApiEndpoint}`
+            const fallback1 = `"$CURL_BIN" -s --max-time 15 -F reqtype=fileupload -F time=1h -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback}`
+            const fallback2 = `"$CURL_BIN" -s --max-time 15 -F reqtype=fileupload -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback2}`
+            // Try primary, then fallback1, then fallback2 and extract first URL via bash regex.
+            return `resp="$(${primary} 2>/dev/null || true)"; url=""; `
+                + `if [[ "$resp" =~ (https?://[^[:space:]\"]+) ]]; then url="\${BASH_REMATCH[1]}"; fi; `
+                + `if [[ -z "$url" ]]; then resp="$(${fallback1} || true)"; if [[ "$resp" =~ (https?://[^[:space:]\"]+) ]]; then url="\${BASH_REMATCH[1]}"; fi; fi; `
+                + `if [[ -z "$url" ]]; then resp="$(${fallback2} || true)"; if [[ "$resp" =~ (https?://[^[:space:]\"]+) ]]; then url="\${BASH_REMATCH[1]}"; fi; fi; `
+                + `echo "$url"`
         }
         const annotationCommand = `${(Config.options?.regionSelector?.annotation?.useSatty ?? false) ? "satty" : "swappy"} -f -`;
+        const pathPre = Config.subprocessPathShExport();
         switch (root.action) {
             case RegionSelection.SnipAction.Copy:
-                snipProc.command = ["bash", "-c", `_dir='${screenshotSaveDir}' && mkdir -p "$_dir" && _ss="$_dir/ss-$(date +%Y%m%d-%H%M%S).png" && ${cropToStdout} | tee "$_ss" | wl-copy && echo -n "$_ss" | wl-copy --primary && ${cleanup} && notify-send "Screenshot copied" "${rw}x${rh} saved to $_ss" -a "Screenshot" -i camera-photo -t 3000`]
+                snipProc.command = ["bash", "-c", pathPre + `_dir='${screenshotSaveDir}' && mkdir -p "$_dir" && _ss="$_dir/ss-$(date +%Y%m%d-%H%M%S).png" && ${cropToStdout} | tee "$_ss" | wl-copy && echo -n "$_ss" | wl-copy --primary && ${cleanup} && notify-send "Screenshot copied" "${rw}x${rh} saved to $_ss" -a "Screenshot" -i camera-photo -t 3000`]
                 break;
             case RegionSelection.SnipAction.Edit:
-                snipProc.command = ["bash", "-c", `${cropToStdout} | ${annotationCommand} && ${cleanup}`]
+                snipProc.command = ["bash", "-c", pathPre + `${cropToStdout} | ${annotationCommand} && ${cleanup}`]
                 break;
             case RegionSelection.SnipAction.Search:
-                snipProc.command = ["bash", "-c", `${cropInPlace} && uploaded_url="$(${uploadAndGetUrl(root.screenshotPath)})"; if [[ -n "$uploaded_url" && "$uploaded_url" == http* ]]; then xdg-open "${root.effectiveImageSearchEngineBaseUrl}$uploaded_url"; else notify-send "Image search failed" "Could not upload the image for reverse search" -a "Image Search" -i image; fi; ${cleanup}`]
+                snipProc.command = ["bash", "-c", pathPre
+                    + `CURL_BIN="$HOME/.nix-profile/bin/curl"; [ -x "$CURL_BIN" ] || CURL_BIN="/run/current-system/sw/bin/curl"; [ -x "$CURL_BIN" ] || CURL_BIN="curl"; `
+                    + `XDG_OPEN_BIN="$HOME/.nix-profile/bin/xdg-open"; [ -x "$XDG_OPEN_BIN" ] || XDG_OPEN_BIN="/run/current-system/sw/bin/xdg-open"; [ -x "$XDG_OPEN_BIN" ] || XDG_OPEN_BIN="xdg-open"; `
+                    + `GIO_BIN="$HOME/.nix-profile/bin/gio"; [ -x "$GIO_BIN" ] || GIO_BIN="/run/current-system/sw/bin/gio"; [ -x "$GIO_BIN" ] || GIO_BIN="gio"; `
+                    + `GRIM_BIN="$HOME/.nix-profile/bin/grim"; [ -x "$GRIM_BIN" ] || GRIM_BIN="/run/current-system/sw/bin/grim"; [ -x "$GRIM_BIN" ] || GRIM_BIN="grim"; `
+                    + `if [[ ! -s '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' ]]; then "$GRIM_BIN" -g '${slurpRegion}' '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' >/dev/null 2>&1 || true; fi; `
+                    + `if command -v magick >/dev/null 2>&1; then ${cropInPlace} || true; fi; `
+                    + `uploaded_url="$(${uploadAndGetUrl(root.screenshotPath)})"; `
+                    + `engine="${root.effectiveImageSearchEngineBaseUrl}"; if [[ -z "$engine" || "$engine" == "https://yandex.com/images/search?rpt=imageview&url=" ]]; then engine="https://lens.google.com/uploadbyurl?url="; fi; `
+                    + `printf 'uploaded_url=%s\nengine=%s\nfile=%s\n' "$uploaded_url" "$engine" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' > /tmp/inir-image-search.log; `
+                    + `if [[ -n "$uploaded_url" && "$uploaded_url" == http* ]]; then `
+                    + `target_url="\${engine}\${uploaded_url}"; `
+                    + `"$XDG_OPEN_BIN" "$target_url" >/dev/null 2>&1 || "$GIO_BIN" open "$target_url" >/dev/null 2>&1 || { printf '%s' "$target_url" | wl-copy; notify-send "Image search link copied" "$target_url" -a "Image Search" -i image; }; `
+                    + `else notify-send "Image search failed" "Could not upload the image for reverse search" -a "Image Search" -i image; `
+                    + `fi; ${cleanup}`]
                 break;
             case RegionSelection.SnipAction.CharRecognition:
-                snipProc.command = ["bash", "-c", `${cropInPlace} && tesseract '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout -l $(tesseract --list-langs | awk 'NR>1{print $1}' | tr '\\n' '+' | sed 's/\\+$/\\n/') | tee >(wl-copy --primary) | wl-copy && ${cleanup} && notify-send "Text recognized" "OCR text copied to clipboard" -a "OCR" -i edit-find -t 3000`]
+                snipProc.command = ["bash", "-c", pathPre + `${cropInPlace} && tesseract '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout -l $(tesseract --list-langs | awk 'NR>1{print $1}' | tr '\\n' '+' | sed 's/\\+$/\\n/') | tee >(wl-copy --primary) | wl-copy && ${cleanup} && notify-send "Text recognized" "OCR text copied to clipboard" -a "OCR" -i edit-find -t 3000`]
                 break;
             case RegionSelection.SnipAction.Record:
-                snipProc.command = ["bash", "-c", `${Directories.recordScriptPath} --region '${slurpRegion}'`]
+                snipProc.command = ["bash", "-c", pathPre + `${Directories.recordScriptPath} --region '${slurpRegion}'`]
                 break;
             case RegionSelection.SnipAction.RecordWithSound:
-                snipProc.command = ["bash", "-c", `${Directories.recordScriptPath} --region '${slurpRegion}' --sound`]
+                snipProc.command = ["bash", "-c", pathPre + `${Directories.recordScriptPath} --region '${slurpRegion}' --sound`]
                 break;
             default:
                 root.dismiss();
@@ -389,6 +486,9 @@ PanelWindow {
 
     Process {
         id: snipProc
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
     }
 
     Rectangle {

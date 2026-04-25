@@ -1,6 +1,7 @@
 pragma Singleton
 pragma ComponentBehavior: Bound
 
+import qs.modules.common
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -102,13 +103,13 @@ Singleton {
 
     Process {
         id: getUsername
-        command: ["id", "-un"]
+        command: [Config.nixosSystemProfileBin + "/id", "-un"]
         stdout: StdioCollector {
             id: usernameCollector
             onStreamFinished: {
                 const name = usernameCollector.text.trim() || Quickshell.env("USER") || root.username
                 root.username = name
-                getDisplayName.command = ["getent", "passwd", name]
+                getDisplayName.command = [Config.nixosSystemProfileBin + "/getent", "passwd", name]
                 getDisplayName.running = true
             }
         }
@@ -117,7 +118,7 @@ Singleton {
     Process {
         id: getDisplayName
         running: false
-        command: ["getent", "passwd", root.username]
+        command: [Config.nixosSystemProfileBin + "/getent", "passwd", root.username]
         stdout: StdioCollector {
             id: displayNameCollector
             onStreamFinished: {
@@ -133,7 +134,7 @@ Singleton {
     Process {
         id: getDesktopEnvironment
         running: false
-        command: ["bash", "-c", "echo $XDG_CURRENT_DESKTOP,$WAYLAND_DISPLAY"]
+        command: [Config.nixosSystemProfileBin + "/bash", "-c", "echo $XDG_CURRENT_DESKTOP,$WAYLAND_DISPLAY"]
         stdout: StdioCollector {
             id: deCollector
             onStreamFinished: {

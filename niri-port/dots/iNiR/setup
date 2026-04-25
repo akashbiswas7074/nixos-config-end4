@@ -58,6 +58,30 @@ fi
 
 cd "$REPO_ROOT"
 
+# systemd / display managers / Quickshell Process / minimal login shells may start with
+# an empty or useless PATH. Without this, every `command -v`, the TUI (gum), `nix`, `git`,
+# and `./setup` menus look "broken" (no action, all deps "missing").
+inir_ensure_path() {
+    local p="${PATH:-}"
+    # NixOS system tools + setuid (sudo) + coreutils; profile for user nix / HM.
+    local prefix="/run/wrappers/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/bin"
+    if [[ -z "$p" ]]; then
+        export PATH="$prefix"
+    elif [[ ":$p:" != *":/run/current-system/sw/bin:"* ]]; then
+        export PATH="$prefix:$p"
+    fi
+    if [[ -d "$HOME/.nix-profile/bin" ]] && [[ ":$PATH:" != *":$HOME/.nix-profile/bin:"* ]]; then
+        export PATH="$HOME/.nix-profile/bin:$PATH"
+    fi
+    if [[ -n "${XDG_STATE_HOME:-}" && -d "$XDG_STATE_HOME/nix/profile/bin" ]] && [[ ":$PATH:" != *":$XDG_STATE_HOME/nix/profile/bin:"* ]]; then
+        export PATH="$XDG_STATE_HOME/nix/profile/bin:$PATH"
+    fi
+    if [[ -d "/etc/profiles/per-user/$USER/bin" ]] && [[ ":$PATH:" != *":/etc/profiles/per-user/$USER/bin:"* ]]; then
+        export PATH="/etc/profiles/per-user/$USER/bin:$PATH"
+    fi
+}
+inir_ensure_path
+
 # Handle Ctrl+C gracefully
 cleanup() {
     echo ""
@@ -198,11 +222,28 @@ sync_launcher_from_repo() {
     fi
 }
 
+# See scripts/inir resolve_systemd_launcher_path — must match for qs (Quickshell) on PATH under systemd.
+inir_systemd_launcher_path() {
+    local d="${XDG_BIN_HOME:-$HOME/.local/bin}"
+    if [[ -f /etc/NIXOS ]] || grep -q '^ID=nixos' /etc/os-release 2>/dev/null; then
+        if [[ -x "${HOME}/.nix-profile/bin/inir" ]]; then
+            printf '%s\n' "${HOME}/.nix-profile/bin/inir"
+            return 0
+        fi
+        if [[ -x /run/current-system/sw/bin/inir ]]; then
+            printf '%s\n' /run/current-system/sw/bin/inir
+            return 0
+        fi
+    fi
+    printf '%s\n' "${d}/inir"
+}
+
 sync_user_inir_service_from_repo_if_present() {
     local service_asset="${REPO_ROOT}/assets/systemd/inir.service"
     local service_target_dir="${XDG_CONFIG_HOME}/systemd/user"
     local service_target="${service_target_dir}/inir.service"
-    local launcher_target="${XDG_BIN_HOME}/inir"
+    local launcher_target
+    launcher_target="$(inir_systemd_launcher_path)"
     local tmp_file
     local changed=false
 

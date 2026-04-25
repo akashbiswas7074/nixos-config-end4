@@ -10,7 +10,7 @@ import Quickshell.Io
 Singleton {
     id: root
     // property string cliphistBinary: FileUtils.trimFileProtocol(`${Directories.home}/.cargostash`)
-    property string cliphistBinary: "cliphist"
+    property string cliphistBinary: `${Quickshell.env("HOME")}/.nix-profile/bin/cliphist`
     // Limit how many entries we keep/read to avoid huge models and heavy fuzzy search
     property int maxEntries: 400
     property real pasteDelay: 0.05
@@ -58,16 +58,16 @@ Singleton {
         return match ? match[1] : ""
     }
 
-    function decodeCommand(entry): string {
-        if (root.cliphistBinary.includes("cliphist")) {
-            const id = root.entryId(entry)
-            if (id.length > 0)
-                return `${root.cliphistBinary} decode ${id}`
-            return `printf '%s\n' '${StringUtils.shellSingleQuoteEscape(entry)}' | ${root.cliphistBinary} decode`
-        }
+    function cliphistResolverPrefix(): string {
+        const cliphistEsc = StringUtils.shellSingleQuoteEscape(root.cliphistBinary)
+        return `CH_BIN='${cliphistEsc}'; [ -x "$CH_BIN" ] || CH_BIN='cliphist'; `
+    }
 
-        const entryNumber = String(entry ?? "").split("\t")[0]
-        return `${root.cliphistBinary} decode ${entryNumber}`
+    function decodeCommand(entry): string {
+        const id = root.entryId(entry)
+        if (id.length > 0)
+            return `${root.cliphistResolverPrefix()}"$CH_BIN" decode ${id}`
+        return `${root.cliphistResolverPrefix()}printf '%s\n' '${StringUtils.shellSingleQuoteEscape(entry)}' | "$CH_BIN" decode`
     }
 
     function refresh() {
@@ -79,12 +79,12 @@ Singleton {
         root._log("[Cliphist] copy()", String(entry).slice(0, 120))
         root._selfCopy = true
         selfCopyResetTimer.restart()
-        Quickshell.execDetached(["bash", "-c", `${root.decodeCommand(entry)} | wl-copy`]);
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + `${root.decodeCommand(entry)} | wl-copy`]);
     }
 
     function paste(entry) {
         root._selfCopy = true
-        Quickshell.execDetached(["bash", "-c", `${root.decodeCommand(entry)} | wl-copy\n${root.pressPasteCommand}`]);
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + `${root.decodeCommand(entry)} | wl-copy\n${root.pressPasteCommand}`]);
     }
 
     function superpaste(count, isImage = false) {
@@ -95,13 +95,16 @@ Singleton {
         }).slice(0, count)
         const pasteCommands = [...targetEntries].reverse().map(entry => `${root.decodeCommand(entry)} | wl-copy\nsleep ${root.pasteDelay}\n${root.pressPasteCommand}`)
         // Act
-        Quickshell.execDetached(["bash", "-c", pasteCommands.join(`\nsleep ${root.pasteDelay}\n`)]);
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + pasteCommands.join(`\nsleep ${root.pasteDelay}\n`)]);
     }
 
     Process {
         id: deleteProc
         property string entry: ""
-        command: [root.cliphistBinary, "delete"]
+        command: ["bash", "-c", Config.subprocessPathShExport() + `${root.cliphistResolverPrefix()}exec "$CH_BIN" delete`]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         stdinEnabled: true
         function deleteEntry(entry) {
             deleteProc.entry = entry;
@@ -130,7 +133,10 @@ Singleton {
 
     Process {
         id: wipeProc
-        command: [root.cliphistBinary, "wipe"]
+        command: ["bash", "-c", Config.subprocessPathShExport() + `${root.cliphistResolverPrefix()}exec "$CH_BIN" wipe`]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         onExited: (exitCode, exitStatus) => {
             root.refresh();
         }
@@ -185,7 +191,10 @@ Singleton {
         id: readProc
         property list<string> buffer: []
 
-        command: [root.cliphistBinary, "list"]
+        command: ["bash", "-c", Config.subprocessPathShExport() + `${root.cliphistResolverPrefix()}exec "$CH_BIN" list`]
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
 
         stdout: SplitParser {
             onRead: (line) => {

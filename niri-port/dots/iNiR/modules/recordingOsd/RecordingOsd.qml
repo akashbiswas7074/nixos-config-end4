@@ -26,7 +26,7 @@ Scope {
     }
 
     function stopRecording(): void {
-        Quickshell.execDetached(["pkill", "-SIGINT", "wf-recorder"])
+        Quickshell.execDetached([Config.nixosSystemProfileBin + "/pkill", "-SIGINT", "wf-recorder"])
     }
 
     Connections {

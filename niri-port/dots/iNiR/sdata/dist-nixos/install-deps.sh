@@ -10,10 +10,26 @@ fi
 
 tui_info "Installing NixOS dependencies for iNiR..."
 
+# Walk up from REPO_ROOT to find a flake.nix (e.g. unified nixos-config monorepo). The
+# iNiR tree itself has no flake; `.#awww-compat` would otherwise always fail.
+inir_find_parent_nix_flake() {
+  local d cur
+  cur="${REPO_ROOT:-$(pwd)}"
+  d="$(cd -- "$cur" && pwd)" || return 1
+  local i
+  for ((i=0; i<10; i++)); do
+    if [[ -f "$d/flake.nix" ]]; then
+      echo "$d"
+      return 0
+    fi
+    d="$(cd -- "$d/.." && pwd)" || return 1
+  done
+  return 1
+}
+
 # Map command names (used by doctor/setup) to installable Nix flake attrs.
-# NOTE:
-# - `awww` is not available in nixpkgs, so we install our local compatibility
-#   package that proxies to `swww` while keeping the same command names.
+# NOTE: `awww` / `awww-daemon` come from the monorepo's `packages.<system>.awww-compat` when
+# a parent flake exists; otherwise skip (use NixOS inir module or install swww yourself).
 declare -A nix_attr_for_cmd=(
   [qs]="nixpkgs#quickshell"
   [niri]="nixpkgs#niri"
@@ -31,8 +47,7 @@ declare -A nix_attr_for_cmd=(
   [wl-copy]="nixpkgs#wl-clipboard"
   [wl-paste]="nixpkgs#wl-clipboard"
   [fuzzel]="nixpkgs#fuzzel"
-  [awww]=".#awww-compat"
-  [awww-daemon]=".#awww-compat"
+  [gum]="nixpkgs#gum"
   [hyprpicker]="nixpkgs#hyprpicker"
   [playerctl]="nixpkgs#playerctl"
   [notify-send]="nixpkgs#libnotify"
@@ -53,6 +68,7 @@ declare -A nix_attr_for_cmd=(
   [wf-recorder]="nixpkgs#wf-recorder"
   [ffmpeg]="nixpkgs#ffmpeg"
   [swappy]="nixpkgs#swappy"
+  [satty]="nixpkgs#satty"
   [tesseract]="nixpkgs#tesseract"
   [qalc]="nixpkgs#libqalculate"
   [brightnessctl]="nixpkgs#brightnessctl"
@@ -68,14 +84,31 @@ declare -A nix_attr_for_cmd=(
   [mpv]="nixpkgs#mpv"
 )
 
-# Build-only dev libraries are intentionally NOT added to the user profile.
-# They are pulled in transiently by install-python-packages via `nix shell`
-# to avoid profile collisions across *.dev outputs (e.g. xorgproto vs libX11).
+_flake_parent="$(inir_find_parent_nix_flake 2>/dev/null || true)"
+if [[ -n "$_flake_parent" ]]; then
+  _fsys="x86_64-linux"
+  case "$(uname -m 2>/dev/null)" in
+    aarch64|arm64) _fsys="aarch64-linux" ;;
+  esac
+  nix_attr_for_cmd[awww]="path:$_flake_parent#packages.$_fsys.awww-compat"
+  nix_attr_for_cmd[awww-daemon]="path:$_flake_parent#packages.$_fsys.awww-compat"
+else
+  nix_attr_for_cmd[awww]=""
+  nix_attr_for_cmd[awww-daemon]=""
+fi
+
+# Optional Qt/KDE QML support for *impure* nix profile installs (no inir NixOS package).
+# These overlap files (e.g. metatypes/*.json) with `home-manager-path` — `nix profile add`
+# then fails the whole batch. Home Manager + programs.inir already bring Qt/Quickshell.
 runtime_extra_targets=(
   "nixpkgs#qt6.qt5compat"
   "nixpkgs#qt6.qtmultimedia"
   "nixpkgs#kdePackages.kirigami.unwrapped"
 )
+
+inir_nix_profile_includes_home_manager() {
+  nix profile list 2>/dev/null | grep -q 'home-manager-path'
+}
 
 required_cmds=(
   qs niri nmcli wpctl jq rsync curl git python3 fish magick grim cliphist
@@ -84,7 +117,7 @@ required_cmds=(
 )
 
 optional_cmds=(
-  uv starship eza slurp wf-recorder ffmpeg swappy tesseract qalc brightnessctl
+  gum uv starship eza slurp wf-recorder ffmpeg swappy satty tesseract qalc brightnessctl
   socat yt-dlp swaylock swayidle wlsunset ddcutil kwriteconfig6
   nm-connection-editor xdg-settings mpv
 )
@@ -105,7 +138,13 @@ for cmd in "${cmds_to_check[@]}"; do
 
   attr="${nix_attr_for_cmd[$cmd]:-}"
   if [[ -z "$attr" ]]; then
-    log_warning "No Nix mapping for command '$cmd' (skipping)"
+    if [[ "$cmd" == "awww" || "$cmd" == "awww-daemon" ]]; then
+      if ! command -v awww &>/dev/null; then
+        log_info "Skipping nix profile for '$cmd' (no parent flake with awww-compat). Use the iNiR NixOS/Home-Manager module, or run setup from a monorepo that includes flake.nix with packages.<system>.awww-compat."
+      fi
+    else
+      log_warning "No Nix mapping for command '$cmd' (skipping)"
+    fi
     continue
   fi
 
@@ -122,18 +161,22 @@ for cmd in "${cmds_to_check[@]}"; do
   fi
 done
 
-for target in "${runtime_extra_targets[@]}"; do
-  already_added=false
-  for existing in "${targets[@]}"; do
-    if [[ "$existing" == "$target" ]]; then
-      already_added=true
-      break
+if inir_nix_profile_includes_home_manager; then
+  log_info "Skipping nix profile Qt/KDE extras (they conflict with home-manager-path; Qt/Quickshell is already provided via Home Manager + programs.inir or nixos-rebuild)."
+else
+  for target in "${runtime_extra_targets[@]}"; do
+    already_added=false
+    for existing in "${targets[@]}"; do
+      if [[ "$existing" == "$target" ]]; then
+        already_added=true
+        break
+      fi
+    done
+    if [[ "$already_added" == false ]]; then
+      targets+=("$target")
     fi
   done
-  if [[ "$already_added" == false ]]; then
-    targets+=("$target")
-  fi
-done
+fi
 
 if [[ ${#targets[@]} -eq 0 ]]; then
   log_success "NixOS dependencies already present"

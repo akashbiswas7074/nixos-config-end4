@@ -80,6 +80,7 @@ DEPS_WAYLAND_CLIPHIST="arch:cliphist fedora:GITHUB:sentriz/cliphist debian:GITHU
 DEPS_WAYLAND_GRIM="arch:grim fedora:grim debian:grim ubuntu:grim opensuse:grim void:grim"
 DEPS_WAYLAND_SLURP="arch:slurp fedora:slurp debian:slurp ubuntu:slurp opensuse:slurp void:slurp"
 DEPS_WAYLAND_SWAPPY="arch:swappy fedora:swappy debian:swappy ubuntu:swappy opensuse:swappy void:swappy"
+DEPS_WAYLAND_SATTY="arch:satty fedora:satty debian:satty ubuntu:satty opensuse:satty void:satty"
 DEPS_WAYLAND_WFRECORDER="arch:wf-recorder fedora:wf-recorder debian:wf-recorder ubuntu:wf-recorder opensuse:wf-recorder void:wf-recorder"
 DEPS_WAYLAND_WLSUNSET="arch:wlsunset fedora:wlsunset debian:wlsunset ubuntu:wlsunset opensuse:wlsunset void:wlsunset"
 DEPS_WAYLAND_SWAYIDLE="arch:swayidle fedora:swayidle debian:swayidle ubuntu:swayidle opensuse:swayidle void:swayidle"

@@ -11,12 +11,19 @@ QuickToggleModel {
     property bool sourceIsMonitor: SongRec.monitorSource === SongRec.MonitorSource.Monitor
 
     name: Translation.tr("Identify Music")
-    statusText: toggled ? Translation.tr("Listening...") : sourceIsMonitor ? Translation.tr("System sound") : Translation.tr("Microphone")
+    statusText: !SongRec.songrecAvailable
+        ? Translation.tr("Install songrec")
+        : (toggled ? Translation.tr("Listening...") : sourceIsMonitor ? Translation.tr("System sound") : Translation.tr("Microphone"))
     icon: toggled ? "music_cast" : (sourceIsMonitor ? "music_note" : "frame_person_mic")
 
-    tooltipText: Translation.tr("Recognize music | Right-click to toggle source")
+    tooltipText: !SongRec.songrecAvailable
+        ? Translation.tr("Install songrec to use music recognition")
+        : Translation.tr("Recognize music | Right-click to toggle source")
 
     mainAction: () => {
+        if (!SongRec.songrecAvailable) {
+            return
+        }
         SongRec.toggleRunning()
     }
     altAction: () => {

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
+import qs
 import qs.modules.common
 import qs.modules.common.widgets
 import qs.services
@@ -166,33 +167,42 @@ Item {
                 }
 
                 // Widget Management Button
-                RippleButton {
+                Rectangle {
                     id: settingsBtn
                     implicitWidth: 36
                     implicitHeight: 36
-                    buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
-                    colBackground: "transparent"
-                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
-                        : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : Appearance.colors.colLayer1Hover
-                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active
-                        : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : Appearance.colors.colLayer1Active
+                    radius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
+                    color: settingsMouse.containsPress
+                        ? (Appearance.inirEverywhere ? Appearance.inir.colLayer1Active : Appearance.colors.colLayer1Active)
+                        : (settingsMouse.containsMouse
+                            ? (Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover : Appearance.colors.colLayer1Hover)
+                            : "transparent")
+                    z: 50
 
-                    onClicked: {
-                        const isWaffle = (Config.options?.panelFamily === "waffle" && Config.options?.waffles?.settings?.useMaterialStyle !== true);
-                        const settingsPath = isWaffle ? Quickshell.shellPath("waffleSettings.qml") : Quickshell.shellPath("settings.qml");
-                        const pageIndex = isWaffle ? 6 : 5; // Modules (Waffle) vs Interface (ii)
-                        const section = isWaffle ? Translation.tr("Widgets Panel") : Translation.tr("Widgets");
-
-                        Quickshell.execDetached(["env", "QS_SETTINGS_PAGE=" + pageIndex, "QS_SETTINGS_SECTION=" + section, Quickshell.shellPath("scripts/inir"), isWaffle ? "waffle-settings-window" : "settings-window"]);
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "tune"
+                        iconSize: 18
+                        fill: 0
+                        color: Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0
                     }
 
-                    contentItem: Item {
-                        MaterialSymbol {
-                            anchors.centerIn: parent
-                            text: "tune" // or 'widgets'
-                            iconSize: 18
-                            fill: 0
-                            color: Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0
+                    MouseArea {
+                        id: settingsMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            const isWaffle = (Config.options?.panelFamily === "waffle" && Config.options?.waffles?.settings?.useMaterialStyle !== true)
+                            const pageIndex = isWaffle ? 6 : 5
+                            const section = isWaffle ? Translation.tr("Widgets Panel") : Translation.tr("Widgets")
+                            const inirPath = String(Quickshell.shellPath("scripts/inir")).replace(/^file:\/\//, "")
+                            const inirEsc = StringUtils.shellSingleQuoteEscape(inirPath)
+                            const sectionEsc = StringUtils.shellSingleQuoteEscape(section)
+                            const cmd = Config.subprocessPathShExport()
+                                + `export QS_SETTINGS_PAGE='${pageIndex}' QS_SETTINGS_SECTION='${sectionEsc}'; `
+                                + `exec '${inirEsc}' ${isWaffle ? "waffle-settings-window" : "settings-window"}`
+                            Quickshell.execDetached(["bash", "-c", cmd])
                         }
                     }
 

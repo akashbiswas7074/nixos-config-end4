@@ -9,6 +9,8 @@ import qs.modules.common
 
 Singleton {
     id: root
+    // NixOS: Quickshell child Process may not see PATH; use system profile for curl/bash (wttr, Open-Meteo, geocode)
+    readonly property string _sw: Config.nixosSystemProfileBin
 
     readonly property bool enabled: Config.options?.bar?.weather?.enable ?? false
     readonly property int fetchInterval: (Config.options?.bar?.weather?.fetchInterval ?? 10) * 60 * 1000
@@ -233,7 +235,7 @@ Singleton {
             + "&precipitation_unit=" + precipUnit
             + "&visibility_unit=" + visUnit
 
-        openMeteoFetcher.command = ["curl", "-s", "--max-time", "15", url]
+        openMeteoFetcher.command = [root._sw + "/curl", "-s", "--max-time", "15", url]
         openMeteoFetcher.running = true
     }
 
@@ -255,7 +257,7 @@ Singleton {
             };
             if (!root.configCity) {
                 // Reverse geocode to get a nice city name
-                reverseGeocoder.command = ["curl", "-s", "--max-time", "10",
+                reverseGeocoder.command = [root._sw + "/curl", "-s", "--max-time", "10",
                     "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + root.configLat + "&lon=" + root.configLon + "&zoom=10&accept-language=en"];
                 reverseGeocoder.running = true;
             } else {
@@ -268,7 +270,7 @@ Singleton {
             // User provided city name — forward geocode for coordinates + validated name
             console.info("[Weather] Using manual city:", root.redactedLogLocationName(root.configCity));
             const q = encodeURIComponent(root.configCity);
-            forwardGeocoder.command = ["curl", "-s", "--max-time", "10",
+            forwardGeocoder.command = [root._sw + "/curl", "-s", "--max-time", "10",
                 "https://nominatim.openstreetmap.org/search?format=jsonv2&q=" + q + "&limit=5&addressdetails=1&accept-language=es,en"];
             forwardGeocoder.running = true;
             return;
@@ -307,8 +309,8 @@ Singleton {
         } else {
             query = encodeURIComponent(root.location.name.split(',')[0].trim());
         }
-        const cmd = `curl -s --max-time 15 'https://wttr.in/${query}?format=j1'`;
-        fetcher.command = ["bash", "-c", cmd];
+        const cmd = root._sw + "/curl" + ` -s --max-time 15 'https://wttr.in/${query}?format=j1'`;
+        fetcher.command = [root._sw + "/bash", "-c", cmd];
         fetcher.running = true;
     }
 
@@ -460,7 +462,7 @@ Singleton {
     // Forward geocoder: city name → coordinates + validated name
     Process {
         id: forwardGeocoder
-        command: ["curl", "-s", "--max-time", "10", ""]
+        command: [root._sw + "/curl", "-s", "--max-time", "10", ""]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text.length === 0) {
@@ -538,7 +540,7 @@ Singleton {
     // Reverse geocoder: coordinates → city name
     Process {
         id: reverseGeocoder
-        command: ["curl", "-s", "--max-time", "10", ""]
+        command: [root._sw + "/curl", "-s", "--max-time", "10", ""]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text.length === 0) {
@@ -575,7 +577,10 @@ Singleton {
     Process {
         id: gpsLocator
         property bool _handledFallback: false
-        command: ["bash", "-c", "where-am-i -t 10 2>/dev/null | grep -oP '(Latitude|Longitude):\\s*\\K[\\d.-]+' | head -2 | paste -sd' '"]
+        command: [
+            root._sw + "/bash", "-c",
+            root._sw + "/where-am-i -t 10 2>/dev/null | " + root._sw + "/grep -oP '(Latitude|Longitude):\\s*\\K[\\d.-]+' | " + root._sw + "/head -n 2 | " + root._sw + "/paste -sd' '"
+        ]
         onRunningChanged: if (running) _handledFallback = false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -593,7 +598,7 @@ Singleton {
                         root.location = { valid: true, lat: lat, lon: lon, name: "" };
                         console.info("[Weather] GPS location:", root.redactedLogCoordinates(lat, lon));
                         // Reverse geocode for display name
-                        reverseGeocoder.command = ["curl", "-s", "--max-time", "10",
+                        reverseGeocoder.command = [root._sw + "/curl", "-s", "--max-time", "10",
                             "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lon + "&zoom=10&accept-language=en"];
                         reverseGeocoder.running = true;
                         return;
@@ -616,7 +621,7 @@ Singleton {
     // IP geolocation (ip-api.com - accurate)
     Process {
         id: ipLocator
-        command: ["curl", "-s", "--max-time", "10", "http://ip-api.com/json/?fields=lat,lon,city,regionName"]
+        command: [root._sw + "/curl", "-s", "--max-time", "10", "http://ip-api.com/json/?fields=lat,lon,city,regionName"]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text.length === 0) {
@@ -655,7 +660,7 @@ Singleton {
     // Fallback: ipwho.is
     Process {
         id: fallbackLocator
-        command: ["curl", "-s", "--max-time", "10", "https://ipwho.is/"]
+        command: [root._sw + "/curl", "-s", "--max-time", "10", "https://ipwho.is/"]
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text.length === 0) return;
@@ -693,7 +698,7 @@ Singleton {
         id: fetcher
         // Guard: prevent double fallback invocation from both onStreamFinished and onExited
         property bool _fallbackTriggered: false
-        command: ["bash", "-c", ""]
+        command: [root._sw + "/bash", "-c", ""]
         onRunningChanged: if (running) _fallbackTriggered = false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -769,7 +774,7 @@ Singleton {
 
     Process {
         id: openMeteoFetcher
-        command: ["curl", "-s", "--max-time", "15", ""]
+        command: [root._sw + "/curl", "-s", "--max-time", "15", ""]
         stdout: StdioCollector {
             onStreamFinished: {
                 const payload = text.trim()

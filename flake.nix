@@ -38,11 +38,16 @@
           niri-flake.homeModules.niri
           inir.homeModules.default
           (
-            { config, ... }:
+            { config, lib, pkgs, ... }:
             {
               home.username = "akashbiswas";
               home.homeDirectory = "/home/akashbiswas";
               home.stateVersion = "23.11";
+              # If activation fails on “would be clobbered”, run once:
+              #   home-manager switch -b backup --flake "<this-repo>#akashbiswas"
+              # (This HM revision has no home.backupFileExtension; use -b backup when needed.)
+              # NixOS setuid binaries (sudo, etc.) live here — must be before /run/current-system/sw/bin in PATH
+              home.sessionPath = [ "/run/wrappers/bin" ];
               home.packages = with pkgsx; [
                 jq
                 fish
@@ -52,14 +57,54 @@
                 fuzzel
                 playerctl
                 ddcutil
+                brightnessctl
+                wlsunset
                 kdePackages.kconfig
+                # Conda-compatible env manager (use instead of the Anaconda .sh installer on NixOS)
+                micromamba
               ];
-              home.file.".local/state/quickshell/.venv".source = inirQuickshellPython;
-              programs.inir.enable = true;
+              # niri-portals.conf is already installed by programs.inir (home.file from dots/.config).
+              # Do not manage ~/.local/state/quickshell/.venv here: iNiR ./setup uses `uv` and creates a real
+              # directory; HM would try to replace it with a single symlink (cmp fails, activation aborts).
+              #
+              # These often differ after matugen / KDE apps run locally; allow HM to replace with dots.
+              home.file.".config/kdeglobals".force = true;
+              home.file.".config/matugen/config.toml".force = true;
+              home.file.".config/matugen/templates.json".force = true;
+              home.file.".config/matugen/templates/terminals/foot.ini".force = true;
+
+              # ~/.local/bin/inir is the raw script (no Nix PATH); systemd then fails with "qs not found".
+              # Use the HM-installed wrapped binary (same as `inir` from programs.inir).
+              home.file.".config/systemd/user/inir.service.d/60-nixos-wrapped-inir.conf".text = ''
+                [Service]
+                Environment=PATH=/run/wrappers/bin:/run/current-system/sw/bin:%h/.nix-profile/bin:/etc/profiles/per-user/%u/bin
+                ExecStart=
+                ExecStart=%h/.nix-profile/bin/inir run --session
+                ExecStopPost=
+                ExecStopPost=-%h/.nix-profile/bin/inir cleanup-orphans
+              '';
+
+              programs.inir = {
+                enable = true;
+                # Replace plain files with store symlinks (not only when content differs).
+                homeFileForce = true;
+              };
               programs.niri = {
                 enable = true;
                 package = niri-flake.packages.x86_64-linux.niri-unstable;
               };
+
+              # reloadSystemd restarts inir and can leave start-limit-hit / failed; recover when in a session.
+              home.activation.fixInirAfterSystemd = lib.hm.dag.entryAfter [ "reloadSystemd" ] ''
+                _ctl="${pkgs.systemd}/bin/systemctl"
+                if [[ -x "$_ctl" ]]; then
+                  $DRY_RUN_CMD "$_ctl" --user reset-failed inir.service 2>/dev/null || true
+                  if "$_ctl" --user is-active graphical-session.target &>/dev/null \
+                     || "$_ctl" --user is-active niri.service &>/dev/null; then
+                    $DRY_RUN_CMD "$_ctl" --user start inir.service 2>/dev/null || true
+                  fi
+                fi
+              '';
             }
           )
         ];
@@ -79,11 +124,37 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
+          # NixOS: /run/current-system/sw/bin/sudo is a non-setuid store symlink; the setuid binary is
+          # /run/wrappers/bin/sudo. If PATH has sw/bin before wrappers, `sudo` fails. Prepend wrappers.
           default = pkgs.mkShell {
             packages = [
               pkgs.home-manager
               (pkgs.callPackage ./niri-port/inir-quickshell-python.nix { })
             ];
+            shellHook = ''
+              if [ -d /run/wrappers/bin ]; then
+                export PATH="/run/wrappers/bin''${PATH:+:}$PATH"
+              fi
+            '';
+          };
+          # Micromamba + tools to sanity-check from a terminal. Brightness / game mode / night light
+          # are still driven by Niri + iNiR (Quickshell) in your graphical session — not by this hook.
+          conda = pkgs.mkShell {
+            name = "micromamba-conda";
+            packages = [
+              pkgs.micromamba
+              (inir.packages.${system}.default)
+              pkgs.brightnessctl
+              pkgs.wlsunset
+            ];
+            shellHook = ''
+              if [ -d /run/wrappers/bin ]; then
+                export PATH="/run/wrappers/bin''${PATH:+:}$PATH"
+              fi
+              export MAMBA_ROOT_PREFIX="''${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
+              echo "Micromamba: MAMBA_ROOT_PREFIX=$MAMBA_ROOT_PREFIX"
+              echo "iNiR desktop features (OSD, gamemode, night light) need Niri + inir run; this is only a dev shell."
+            '';
           };
         }
       );

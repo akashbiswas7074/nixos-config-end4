@@ -16,6 +16,18 @@ StyledOverlayWidget {
     minimumWidth: 310
     minimumHeight: 160
 
+    function _execRecordScript(args) {
+        const fishPath = `${FileUtils.trimFileProtocol(Directories.home)}/.nix-profile/bin/fish`;
+        const rec = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath));
+        let cmdline = `'${rec}'`;
+        if (Array.isArray(args) && args.length > 0) {
+            for (let i = 0; i < args.length; ++i)
+                cmdline += ` '${StringUtils.shellSingleQuoteEscape(args[i])}'`;
+        }
+        const cmd = [fishPath, "-c", cmdline];
+        Quickshell.execDetached(cmd);
+    }
+
     // Get the effective save path (config or default XDG Videos)
     readonly property string effectiveSavePath: {
         const configPath = Config.options?.screenRecord?.savePath ?? "";
@@ -72,7 +84,7 @@ StyledOverlayWidget {
                     name: Translation.tr("Screenshot region")
                     onClicked: {
                         GlobalStates.overlayOpen = false;
-                        Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "screenshot"]);
+                        Config.execInirDetached(["region", "screenshot"]);
                     }
                 }
 
@@ -81,7 +93,8 @@ StyledOverlayWidget {
                     name: Translation.tr("Screenshot")
                     onClicked: {
                         GlobalStates.overlayOpen = false;
-                        Quickshell.execDetached(["bash", "-c", "grim - | wl-copy"]);
+                        Quickshell.execDetached(["bash", "-c",
+                            "export PATH='" + StringUtils.shellSingleQuoteEscape(Config.subprocessPath()) + "'; grim - | wl-copy"]);
                     }
                 }
 
@@ -91,11 +104,10 @@ StyledOverlayWidget {
                     isRecording: RecorderStatus.isRecording && !isFullscreenRecording
                     onClicked: {
                         if (RecorderStatus.isRecording) {
-                            // Stop recording
-                            Quickshell.execDetached([Directories.recordScriptPath]);
+                            root._execRecordScript(["--stop"]);
                         } else {
                             GlobalStates.overlayOpen = false;
-                            Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "recordWithSound"]);
+                            Config.execInirDetached(["region", "recordWithSound"]);
                         }
                     }
                     property bool isFullscreenRecording: false
@@ -108,11 +120,10 @@ StyledOverlayWidget {
                     isRecording: RecorderStatus.isRecording
                     onClicked: {
                         if (RecorderStatus.isRecording) {
-                            // Stop recording
-                            Quickshell.execDetached([Directories.recordScriptPath]);
+                            root._execRecordScript(["--stop"]);
                         } else {
                             GlobalStates.overlayOpen = false;
-                            Quickshell.execDetached([Directories.recordScriptPath, "--fullscreen", "--sound"]);
+                            root._execRecordScript(["--fullscreen", "--sound"]);
                         }
                     }
                 }

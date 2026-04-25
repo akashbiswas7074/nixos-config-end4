@@ -32,6 +32,14 @@ Item {
     readonly property real radius: Appearance.angelEverywhere ? Appearance.angel.roundingSmall
         : Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.verysmall
 
+    function runNiriAction(action: string): void {
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + `exec niri msg action ${action}`])
+    }
+
+    function openFiles(): void {
+        Quickshell.execDetached(["bash", "-c", Config.subprocessPathShExport() + "exec xdg-open \"$HOME\""])
+    }
+
     Flickable {
         id: flickable
         anchors.fill: parent
@@ -96,7 +104,7 @@ Item {
                     buttonIcon: "nightlight"
                     text: Translation.tr("Night light")
                     checked: Hyprsunset.active ?? false
-                    onCheckedChanged: if (checked !== Hyprsunset.active) Hyprsunset.toggle()
+                    onCheckedChanged: if (checked !== Hyprsunset.active) Config.execInirDetached(["globalActions", "run", "toggle-nightlight", ""])
                 }
                 ConfigSwitch {
                     buttonIcon: "coffee"
@@ -108,13 +116,13 @@ Item {
                     buttonIcon: "do_not_disturb_on"
                     text: Translation.tr("Do not disturb")
                     checked: Notifications.silent ?? false
-                    onCheckedChanged: if (checked !== Notifications.silent) Notifications.toggleSilent()
+                    onCheckedChanged: if (checked !== Notifications.silent) Config.execInirDetached(["notifications", "toggleSilent"])
                 }
                 ConfigSwitch {
                     buttonIcon: "sports_esports"
                     text: Translation.tr("Game mode")
                     checked: GameMode.active
-                    onCheckedChanged: if (checked !== GameMode.active) GameMode.toggle()
+                    onCheckedChanged: if (checked !== GameMode.active) Config.execInirDetached(["gamemode", "toggle"])
                 }
             }
 
@@ -134,32 +142,44 @@ Item {
                     ActionTile {
                         tileIcon: "screenshot"
                         label: Translation.tr("Screenshot")
-                        onClicked: Quickshell.execDetached(["niri", "msg", "action", "screenshot"])
+                        onClicked: root.runNiriAction("screenshot")
                     }
                     ActionTile {
                         tileIcon: "screenshot_region"
                         label: Translation.tr("Region")
-                        onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "screenshot"])
+                        onClicked: Config.execInirDetached(["region", "screenshot"])
                     }
                     ActionTile {
                         tileIcon: "videocam"
                         label: Translation.tr("Record")
-                        onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "record"])
+                        onClicked: Config.execInirDetached(["region", "record"])
                     }
                     ActionTile {
                         tileIcon: "text_fields"
                         label: Translation.tr("OCR")
-                        onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "region", "ocr"])
+                        onClicked: Config.execInirDetached(["region", "ocr"])
                     }
                     ActionTile {
                         tileIcon: "colorize"
                         label: Translation.tr("Color")
-                        onClicked: Quickshell.execDetached(["niri", "msg", "action", "pick-color"])
+                        onClicked: {
+                            Quickshell.execDetached([
+                                "bash",
+                                "-c",
+                                Config.subprocessPathShExport()
+                                    + "NIRI_BIN=\"$HOME/.nix-profile/bin/niri\"; "
+                                    + "[ -x \"$NIRI_BIN\" ] || NIRI_BIN=\"niri\"; "
+                                    + "if \"$NIRI_BIN\" msg action pick-color >/dev/null 2>&1; then exit 0; fi; "
+                                    + "HYP_BIN=\"$HOME/.nix-profile/bin/hyprpicker\"; "
+                                    + "[ -x \"$HYP_BIN\" ] || HYP_BIN=\"hyprpicker\"; "
+                                    + "exec \"$HYP_BIN\" -a"
+                            ])
+                        }
                     }
                     ActionTile {
                         tileIcon: "screenshot_monitor"
                         label: Translation.tr("Window")
-                        onClicked: Quickshell.execDetached(["niri", "msg", "action", "screenshot-window"])
+                        onClicked: root.runNiriAction("screenshot-window")
                     }
                 }
             }
@@ -180,17 +200,17 @@ Item {
                     ActionTile {
                         tileIcon: "terminal"
                         label: Translation.tr("Terminal")
-                        onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "terminal"])
+                        onClicked: Config.execInirDetached(["terminal"])
                     }
                     ActionTile {
                         tileIcon: "folder"
                         label: Translation.tr("Files")
-                        onClicked: Quickshell.execDetached(["nautilus"])
+                        onClicked: root.openFiles()
                     }
                     ActionTile {
                         tileIcon: "settings"
                         label: Translation.tr("Settings")
-                        onClicked: Quickshell.execDetached([Quickshell.shellPath("scripts/inir"), "settings"])
+                        onClicked: Config.execInirDetached(["settings"])
                     }
                     ActionTile {
                         tileIcon: "tune"
@@ -243,7 +263,7 @@ Item {
                     onCheckedChanged: {
                         if (root._debugTint !== checked) {
                             root._debugTint = checked
-                            Quickshell.execDetached(["niri", "msg", "action", "toggle-debug-tint"])
+                            root.runNiriAction("toggle-debug-tint")
                         }
                     }
                 }
@@ -254,7 +274,7 @@ Item {
                     onCheckedChanged: {
                         if (root._showDamage !== checked) {
                             root._showDamage = checked
-                            Quickshell.execDetached(["niri", "msg", "action", "debug-toggle-damage"])
+                            root.runNiriAction("debug-toggle-damage")
                         }
                     }
                 }
@@ -265,14 +285,14 @@ Item {
                     onCheckedChanged: {
                         if (root._opaqueRegions !== checked) {
                             root._opaqueRegions = checked
-                            Quickshell.execDetached(["niri", "msg", "action", "debug-toggle-opaque-regions"])
+                            root.runNiriAction("debug-toggle-opaque-regions")
                         }
                     }
                 }
                 ActionButton {
                     btnIcon: "refresh"
                     label: Translation.tr("Reload Niri config")
-                    onClicked: Quickshell.execDetached(["niri", "msg", "action", "load-config-file"])
+                    onClicked: root.runNiriAction("load-config-file")
                 }
             }
 

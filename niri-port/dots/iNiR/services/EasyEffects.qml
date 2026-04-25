@@ -37,24 +37,30 @@ Singleton {
     }
 
     function disable() {
-        if (!root.available) return
         root.active = false
         if (pkillProc.running || flatpakKillProc.running) return
         pkillProc.running = true
     }
 
     function enable() {
-        if (!root.available) return
         root.active = true
-        if (root.nativeInstalled) {
-            Quickshell.execDetached(["easyeffects", "--service-mode"])
-        } else {
-            Quickshell.execDetached(["flatpak", "run", "com.github.wwmm.easyeffects", "--service-mode"])
-        }
+        Quickshell.execDetached([
+            "bash",
+            "-c",
+            Config.subprocessPathShExport()
+                + "EE_BIN=\"$HOME/.nix-profile/bin/easyeffects\"; "
+                + "[ -x \"$EE_BIN\" ] || EE_BIN=easyeffects; "
+                + "if command -v \"$EE_BIN\" >/dev/null 2>&1; then "
+                + "nohup \"$EE_BIN\" --service-mode >/tmp/inir-easyeffects.log 2>&1 < /dev/null & "
+                + "exit 0; "
+                + "fi; "
+                + "exec flatpak run com.github.wwmm.easyeffects --service-mode"
+        ])
         refreshStateTimer.restart()
     }
 
     function toggle() {
+        root.fetchAvailability()
         if (root.active) {
             root.disable()
         } else {
@@ -105,6 +111,9 @@ Singleton {
     Process {
         id: whichProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["which", "easyeffects"]
         onExited: (exitCode, exitStatus) => {
             if (exitCode === 0) {
@@ -120,6 +129,9 @@ Singleton {
     Process {
         id: flatpakInfoProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["sh", "-c", "flatpak info com.github.wwmm.easyeffects"]
         onExited: (exitCode, exitStatus) => {
             root.nativeInstalled = false
@@ -130,6 +142,9 @@ Singleton {
     Process {
         id: nativeStatusProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["bash", "-lc", "pgrep -af '(^|/)easyeffects($| )' | grep -v ' -b ' | grep -v ' -q' >/dev/null"]
         onExited: (exitCode, _exitStatus) => {
             root.active = (exitCode === 0)
@@ -139,6 +154,9 @@ Singleton {
     Process {
         id: flatpakPsProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["sh", "-c", "flatpak ps --columns=application"]
         stdout: StdioCollector {
             id: flatpakPsCollector
@@ -152,6 +170,9 @@ Singleton {
     Process {
         id: pkillProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["pkill", "easyeffects"]
         onExited: (_exitCode, _exitStatus) => {
             flatpakKillProc.running = true
@@ -162,6 +183,9 @@ Singleton {
     Process {
         id: flatpakKillProc
         running: false
+        environment: ({
+            "PATH": Config.subprocessPath()
+        })
         command: ["sh", "-c", "flatpak kill com.github.wwmm.easyeffects"]
         onExited: (_exitCode, _exitStatus) => refreshStateTimer.restart()
     }
