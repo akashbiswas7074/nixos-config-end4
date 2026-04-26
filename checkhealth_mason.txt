@@ -1,0 +1,44 @@
+
+==============================================================================
+mason:                                                                    1 ⚠️
+
+mason.nvim ~
+- ✅ OK mason.nvim version v2.2.1
+- ✅ OK PATH: prepend
+- ✅ OK Providers: 
+    mason.providers.registry-api
+    mason.providers.client
+- ✅ OK neovim version >= 0.10.0
+
+mason.nvim [Registries] ~
+- ✅ OK Registry `github.com/mason-org/mason-registry version: 2026-04-25-harsh-brake` is installed.
+- ✅ OK Registry `SynthesizedRegistrySource` is installed.
+
+mason.nvim [Core utils] ~
+- ✅ OK unzip: `UnZip 6.00 of 20 April 2009, by Info-ZIP.  Maintained by C. Spieler.  Send`
+- ✅ OK wget: `GNU Wget 1.25.0, a non-interactive network retriever.`
+- ✅ OK curl: `curl 8.19.0 (x86_64-pc-linux-gnu) libcurl/8.19.0 OpenSSL/3.6.1 zlib/1.3.2 brotli/1.2.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.5 libssh2/1.11.1 nghttp2/1.68.1 ngtcp2/1.22.0 nghttp3/1.15.0 mit-krb5/1.22.1`
+- ✅ OK gzip: `gzip 1.14`
+- ✅ OK tar: `tar (GNU tar) 1.35`
+- ✅ OK bash: `GNU bash, version 5.3.9(1)-release (x86_64-pc-linux-gnu)`
+
+mason.nvim [Languages] ~
+- ✅ OK Go: `go version go1.26.2 linux/amd64`
+- ✅ OK Ruby: `ruby 3.4.9 (2026-03-11 revision 76cca827ab) +PRISM [x86_64-linux]`
+- ✅ OK cargo: `cargo 1.94.0 (29ea6fb6a 2026-03-24)`
+- ✅ OK PHP: `PHP 8.4.20 (cli) (built: Apr  8 2026 08:16:38) (NTS)`
+- ✅ OK node: `v24.14.1`
+- ✅ OK Composer: `Composer version 2.9.7 2026-04-14 13:31:52`
+- ✅ OK RubyGem: `3.7.2`
+- ✅ OK java: `openjdk version "21.0.10" 2026-01-20`
+- ✅ OK luarocks: `/nix/store/kjnc6spw0rqc7qgdxmjsng1msij6bk88-lua5.2-luarocks-3.13.0-1/luarocks-3.13.0-1-rocks/luarocks/3.13.0-1/bin/luarocks 3.13.0`
+- ✅ OK python: `Python 3.13.12`
+- ✅ OK julia: `julia version 1.12.6`
+- ⚠️ WARNING pip: not available
+  - ADVICE:
+    - spawn: python3 failed with exit code 1 and signal 0. /home/akashbiswas/.nix-profile/bin/python3: No module named pip
+
+- ✅ OK npm: `11.11.0`
+- ✅ OK python venv: `Ok`
+- ✅ OK javac: `javac 21.0.10`
+

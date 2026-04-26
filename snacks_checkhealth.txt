@@ -1,0 +1,89 @@
+
+==============================================================================
+snacks:                                                            10 ⚠️  4 ❌
+
+Snacks ~
+- ✅ OK setup called
+
+Snacks.bigfile ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.dashboard ~
+- ✅ OK setup {enabled}
+- ❌ ERROR setup did not run
+
+Snacks.explorer ~
+- ⚠️ WARNING setup {disabled}
+- ✅ OK 'gio' `2.86.3`
+- ✅ OK System trash command found
+
+Snacks.image ~
+- ✅ OK setup {enabled}
+- ✅ OK 'kitty' `kitty 0.46.2 created by Kovid Goyal`
+- ✅ OK 'magick' `Version: ImageMagick 7.1.2-19 Q16-HDRI x86_64 77d89c30f:20260412 https://imagemagick.org`
+- ✅ OK 'convert' `WARNING: The convert command is deprecated in IMv7, use "magick" instead of "convert" or "magick convert"`
+- ✅ OK Terminal Dimensions:
+  - {size}: `0` x `0` pixels
+  - {scale}: `1.00`
+  - {cell}: `0` x `0` pixels
+- ✅ OK Available Treesitter languages:
+    `markdown_inline`, `markdown`
+- ⚠️ WARNING Missing Treesitter languages:
+    `css`, `html`, `javascript`, `latex`, `norg`, `scss`, `svelte`, `tsx`, `typst`, `vue`
+- ⚠️ WARNING Image rendering in docs with missing treesitter parsers won't work
+- ✅ OK 'gs' `10.06.0`
+- ✅ OK PDF files are supported
+- ✅ OK 'tectonic' `Tectonic 0.16.9`
+- ⚠️ WARNING The `latex` treesitter parser is required to render LaTeX math expressions
+- ✅ OK 'mmdc' `11.10.1`
+- ✅ OK Mermaid diagrams are supported
+- ❌ ERROR your terminal does not support the kitty graphics protocol
+- supported terminals: `kitty`, `wezterm`, `ghostty`
+
+Snacks.input ~
+- ✅ OK setup {enabled}
+- ❌ ERROR `vim.ui.input` is not set to `Snacks.input`
+
+Snacks.lazygit ~
+- ✅ OK {lazygit} installed
+
+Snacks.notifier ~
+- ✅ OK setup {enabled}
+- ✅ OK is ready
+
+Snacks.picker ~
+- ✅ OK setup {enabled}
+- ❌ ERROR `vim.ui.select` is not set to `Snacks.picker.select`
+- ⚠️ WARNING Missing Treesitter languages:
+    `regex`
+- ✅ OK 'git' `git version 2.53.0`
+- ✅ OK 'rg' `ripgrep 15.1.0`
+- ✅ OK `Snacks.picker.grep()` is available
+- ✅ OK 'fd' `fd 10.4.2`
+- ✅ OK `Snacks.picker.files()` is available
+- ✅ OK `Snacks.picker.explorer()` is available
+- ⚠️ WARNING `SQLite3` is not available. Frecency and history will be stored in a file instead.
+
+Snacks.quickfile ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.scope ~
+- ✅ OK setup {enabled}
+
+Snacks.scroll ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.statuscolumn ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.terminal ~
+- ✅ OK shell configured
+  - `vim.o.shell`: /run/current-system/sw/bin/bash
+  - `parsed`: { "/run/current-system/sw/bin/bash" }
+
+Snacks.toggle ~
+- ✅ OK {which-key} is installed
+
+Snacks.words ~
+- ✅ OK setup {enabled}
+

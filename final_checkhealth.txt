@@ -1,0 +1,415 @@
+
+==============================================================================
+astrocore:                                                                  ✅
+
+Checking for conflicting mappings ~
+- ✅ OK No conflicting mappings detected
+
+==============================================================================
+astronvim:                                                                  ✅
+
+Checking requirements ~
+- AstroNvim Version: v6.0.4
+- Neovim Version: v0.12.1
+- ✅ OK Using stable Neovim >= 0.11.0
+- ✅ OK `git` is installed: Used for core functionality such as updater and plugin management
+- ✅ OK `xdg-open` is installed: Used for `gx` mapping for opening files with system opener (Optional)
+- ✅ OK `rg` is installed: Used for Pickers `live_grep` picker, `<Leader>fw` and `<Leader>fW` by default (Optional)
+- ✅ OK `lazygit` is installed: Used for mappings to pull up git TUI (Optional)
+- ✅ OK `node` is installed: Used for mappings to pull up node REPL (Optional)
+- ✅ OK `gdu` is installed: Used for mappings to pull up disk usage analyzer (Optional)
+- ✅ OK `btm` is installed: Used for mappings to pull up system monitor (Optional)
+- ✅ OK `python` is installed: Used for mappings to pull up python REPL (Optional)
+
+==============================================================================
+lazy:                                                                     1 ⚠️
+
+lazy.nvim ~
+- {lazy.nvim} version `11.17.5`
+- ✅ OK {git} `version 2.53.0`
+- ✅ OK no existing packages found by other package managers
+- ✅ OK packer_compiled.lua not found
+
+luarocks ~
+- checking `luarocks` installation
+- ✅ OK no plugins require `luarocks`, so you can ignore any warnings below
+- ✅ OK {luarocks} `/nix/store/kjnc6spw0rqc7qgdxmjsng1msij6bk88-lua5.2-luarocks-3.13.0-1/luarocks-3.13.0-1-rocks/luarocks/3.13.0-1/bin/luarocks 3.13.0`
+- ⚠️ WARNING {lua5.1} or {lua} or {lua-5.1} version `5.1` not installed
+
+==============================================================================
+mason:                                                                    1 ⚠️
+
+mason.nvim ~
+- ✅ OK mason.nvim version v2.2.1
+- ✅ OK PATH: prepend
+- ✅ OK Providers: 
+    mason.providers.registry-api
+    mason.providers.client
+- ✅ OK neovim version >= 0.10.0
+
+mason.nvim [Registries] ~
+- ✅ OK Registry `github.com/mason-org/mason-registry version: 2026-04-25-harsh-brake` is installed.
+- ✅ OK Registry `SynthesizedRegistrySource` is installed.
+
+mason.nvim [Core utils] ~
+- ✅ OK unzip: `UnZip 6.00 of 20 April 2009, by Info-ZIP.  Maintained by C. Spieler.  Send`
+- ✅ OK wget: `GNU Wget 1.25.0, a non-interactive network retriever.`
+- ✅ OK curl: `curl 8.19.0 (x86_64-pc-linux-gnu) libcurl/8.19.0 OpenSSL/3.6.1 zlib/1.3.2 brotli/1.2.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.5 libssh2/1.11.1 nghttp2/1.68.1 ngtcp2/1.22.0 nghttp3/1.15.0 mit-krb5/1.22.1`
+- ✅ OK gzip: `gzip 1.14`
+- ✅ OK tar: `tar (GNU tar) 1.35`
+- ✅ OK bash: `GNU bash, version 5.3.9(1)-release (x86_64-pc-linux-gnu)`
+
+mason.nvim [Languages] ~
+- ✅ OK Go: `go version go1.26.2 linux/amd64`
+- ✅ OK Ruby: `ruby 3.4.9 (2026-03-11 revision 76cca827ab) +PRISM [x86_64-linux]`
+- ✅ OK cargo: `cargo 1.94.0 (29ea6fb6a 2026-03-24)`
+- ✅ OK PHP: `PHP 8.4.20 (cli) (built: Apr  8 2026 08:16:38) (NTS)`
+- ✅ OK node: `v24.14.1`
+- ✅ OK Composer: `Composer version 2.9.7 2026-04-14 13:31:52`
+- ✅ OK RubyGem: `3.7.2`
+- ✅ OK julia: `julia version 1.12.6`
+- ✅ OK luarocks: `/nix/store/kjnc6spw0rqc7qgdxmjsng1msij6bk88-lua5.2-luarocks-3.13.0-1/luarocks-3.13.0-1-rocks/luarocks/3.13.0-1/bin/luarocks 3.13.0`
+- ✅ OK python: `Python 3.13.12`
+- ⚠️ WARNING pip: not available
+  - ADVICE:
+    - spawn: python3 failed with exit code 1 and signal 0. /home/akashbiswas/.nix-profile/bin/python3: No module named pip
+
+- ✅ OK java: `openjdk version "21.0.10" 2026-01-20`
+- ✅ OK npm: `11.11.0`
+- ✅ OK python venv: `Ok`
+- ✅ OK javac: `javac 21.0.10`
+
+==============================================================================
+molten:                                                                     ✅
+
+molten-nvim ~
+- ✅ OK NeoVim >=0.9
+- ✅ OK Python >=3.10
+- ✅ OK Python module pynvim found
+- ✅ OK Python module jupyter-client found
+- ✅ OK Python module cairosvg found
+- ✅ OK Python module pnglatex found
+- ✅ OK Python module plotly found
+- ✅ OK Python module kaleido found
+- ✅ OK Python module pyperclip found
+- ✅ OK Python module nbformat found
+- ✅ OK Python module pillow found
+
+==============================================================================
+snacks:                                                            10 ⚠️  4 ❌
+
+Snacks ~
+- ✅ OK setup called
+
+Snacks.bigfile ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.dashboard ~
+- ✅ OK setup {enabled}
+- ❌ ERROR setup did not run
+
+Snacks.explorer ~
+- ⚠️ WARNING setup {disabled}
+- ✅ OK 'gio' `2.86.3`
+- ✅ OK System trash command found
+
+Snacks.image ~
+- ✅ OK setup {enabled}
+- ✅ OK 'kitty' `kitty 0.46.2 created by Kovid Goyal`
+- ✅ OK 'magick' `Version: ImageMagick 7.1.2-19 Q16-HDRI x86_64 77d89c30f:20260412 https://imagemagick.org`
+- ✅ OK 'convert' `WARNING: The convert command is deprecated in IMv7, use "magick" instead of "convert" or "magick convert"`
+- ✅ OK Terminal Dimensions:
+  - {size}: `0` x `0` pixels
+  - {scale}: `1.00`
+  - {cell}: `0` x `0` pixels
+- ✅ OK Available Treesitter languages:
+    `markdown_inline`, `markdown`
+- ⚠️ WARNING Missing Treesitter languages:
+    `css`, `html`, `javascript`, `latex`, `norg`, `scss`, `svelte`, `tsx`, `typst`, `vue`
+- ⚠️ WARNING Image rendering in docs with missing treesitter parsers won't work
+- ✅ OK 'gs' `10.06.0`
+- ✅ OK PDF files are supported
+- ✅ OK 'tectonic' `Tectonic 0.16.9`
+- ⚠️ WARNING The `latex` treesitter parser is required to render LaTeX math expressions
+- ✅ OK 'mmdc' `11.10.1`
+- ✅ OK Mermaid diagrams are supported
+- ❌ ERROR your terminal does not support the kitty graphics protocol
+- supported terminals: `kitty`, `wezterm`, `ghostty`
+
+Snacks.input ~
+- ✅ OK setup {enabled}
+- ❌ ERROR `vim.ui.input` is not set to `Snacks.input`
+
+Snacks.lazygit ~
+- ✅ OK {lazygit} installed
+
+Snacks.notifier ~
+- ✅ OK setup {enabled}
+- ✅ OK is ready
+
+Snacks.picker ~
+- ✅ OK setup {enabled}
+- ❌ ERROR `vim.ui.select` is not set to `Snacks.picker.select`
+- ⚠️ WARNING Missing Treesitter languages:
+    `regex`
+- ✅ OK 'git' `git version 2.53.0`
+- ✅ OK 'rg' `ripgrep 15.1.0`
+- ✅ OK `Snacks.picker.grep()` is available
+- ✅ OK 'fd' `fd 10.4.2`
+- ✅ OK `Snacks.picker.files()` is available
+- ✅ OK `Snacks.picker.explorer()` is available
+- ⚠️ WARNING `SQLite3` is not available. Frecency and history will be stored in a file instead.
+
+Snacks.quickfile ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.scope ~
+- ✅ OK setup {enabled}
+
+Snacks.scroll ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.statuscolumn ~
+- ⚠️ WARNING setup {disabled}
+
+Snacks.terminal ~
+- ✅ OK shell configured
+  - `vim.o.shell`: /run/current-system/sw/bin/bash
+  - `parsed`: { "/run/current-system/sw/bin/bash" }
+
+Snacks.toggle ~
+- ✅ OK {which-key} is installed
+
+Snacks.words ~
+- ✅ OK setup {enabled}
+
+==============================================================================
+vim.deprecated:                                                           1 ⚠️
+
+ ~
+- ⚠️ WARNING opts.jump.float is deprecated. Feature will be removed in Nvim 0.14
+  - ADVICE:
+    - use opts.jump.on_jump instead.
+    - stack traceback:
+        /home/akashbiswas/.local/share/nvim/lazy/astrocore/lua/astrocore/init.lua:592
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:387
+        =[C]:-1
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/util.lua:135
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:395
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:362
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:197
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:543
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:564
+        =[C]:-1
+        /home/akashbiswas/.local/share/nvim/lazy/AstroNvim/lua/astronvim/plugins/mason-tool-installer.lua:20
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:115
+        =[C]:-1
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/util.lua:135
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/core/loader.lua:114
+        /home/akashbiswas/.local/share/nvim/lazy/lazy.nvim/lua/lazy/init.lua:112
+        /home/akashbiswas/.config/nvim/lua/lazy_setup.lua:1
+        =[C]:-1
+        /home/akashbiswas/Desktop/control/nixos-config-end4/AstroNvim/init.lua:30
+
+==============================================================================
+vim.health:                                                                 ✅
+
+System Info ~
+- Nvim version: `v0.12.1` 
+- Operating system: Linux 6.18.24
+- Terminal: kitty
+- $TERM: dumb
+
+Configuration ~
+- ✅ OK no issues found
+
+Runtime ~
+- ✅ OK $VIMRUNTIME: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime
+
+Performance ~
+- ✅ OK Build type: Release
+
+Remote Plugins ~
+- ✅ OK Up to date
+
+Terminal ~
+- key_backspace (kbs) terminfo entry: `? (not found)`
+- key_dc (kdch1) terminfo entry: `? (not found)`
+- $COLORTERM="truecolor"
+
+External Tools ~
+- ✅ OK ripgrep 15.1.0 (/nix/store/abq2d8kfixpmgn0sm843pf6jhv5s4qhg-ripgrep-15.1.0/bin/rg)
+- ✅ OK vim.ui.open: handler found (xdg-open)
+- ✅ OK git version 2.53.0 (/nix/store/c0277k5giric1mn9dklllavbzvxl6hzb-git-2.53.0/bin/git)
+- ✅ OK curl 8.19.0 (/nix/store/sm2nq18jjqp4x0sxpl6lrvwl9rx6mvj2-curl-8.19.0-bin/bin/curl)
+  curl 8.19.0 (x86_64-pc-linux-gnu) libcurl/8.19.0 OpenSSL/3.6.1 zlib/1.3.2 brotli/1.2.0 zstd/1.5.7 libidn2/2.3.8 libpsl/0.21.5 libssh2/1.11.1 nghttp2/1.68.1 ngtcp2/1.22.0 nghttp3/1.15.0 mit-krb5/1.22.1
+  Release-Date: 2026-03-11
+  Protocols: dict file ftp ftps gopher gophers http https imap imaps ipfs ipns mqtt mqtts pop3 pop3s rtsp scp sftp smb smbs smtp smtps telnet tftp
+  Features: alt-svc AsynchDNS brotli GSS-API HSTS HTTP2 HTTP3 HTTPS-proxy IDN IPv6 Kerberos Largefile libz NTLM PSL SPNEGO SSL threadsafe TLS-SRP UnixSockets zstd
+
+==============================================================================
+vim.lsp:                                                                    ✅
+
+- LSP log level : WARN
+- Log path: /home/akashbiswas/.local/state/nvim/lsp.log
+- Log size: 2 KB
+
+vim.lsp: Active Features ~
+- codelens
+  - Active buffers:
+
+
+vim.lsp: Active Clients ~
+- No active clients
+
+vim.lsp: Enabled Configurations ~
+
+vim.lsp: File Watcher ~
+- file watching "(workspace/didChangeWatchedFiles)" disabled on all clients
+
+vim.lsp: Position Encodings ~
+- No active clients
+
+==============================================================================
+vim.pack:                                                                   ✅
+
+vim.pack: basics ~
+- ✅ OK `vim.pack` is not used
+
+==============================================================================
+vim.provider:                                                               ✅
+
+Clipboard (optional) ~
+- ✅ OK Clipboard tool found: wl-copy
+
+Node.js provider (optional) ~
+- Disabled (loaded_node_provider=0).
+
+Perl provider (optional) ~
+- Disabled (loaded_perl_provider=0).
+
+Python 3 provider (optional) ~
+- Using: g:python3_host_prog = "/home/akashbiswas/.nix-profile/bin/python3"
+- Executable: /home/akashbiswas/.nix-profile/bin/python3
+- Python version: 3.13.12
+- pynvim version: 0.6.0
+- ✅ OK Latest pynvim is installed.
+
+Python virtualenv ~
+- ✅ OK no $VIRTUAL_ENV
+
+Ruby provider (optional) ~
+- Disabled (loaded_ruby_provider=0).
+
+==============================================================================
+vim.treesitter:                                                             ✅
+
+Treesitter features ~
+- Treesitter ABI support: min 13, max 15
+- WASM parser support: false
+
+Treesitter parsers ~
+- ✅ OK Parser: bash                      ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/bash.so
+- ✅ OK Parser: c                         ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/c.so
+- ✅ OK Parser: c                    (not loaded), path: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/lib/nvim/parser/c.so
+- ✅ OK Parser: desktop                   ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/desktop.so
+- ✅ OK Parser: lua                       ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/lua.so
+- ✅ OK Parser: lua                  (not loaded), path: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/lib/nvim/parser/lua.so
+- ✅ OK Parser: luap                      ABI: 14, path: /home/akashbiswas/.local/share/nvim/site/parser/luap.so
+- ✅ OK Parser: markdown                  ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/markdown.so
+- ✅ OK Parser: markdown             (not loaded), path: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/lib/nvim/parser/markdown.so
+- ✅ OK Parser: markdown_inline           ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/markdown_inline.so
+- ✅ OK Parser: markdown_inline      (not loaded), path: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/lib/nvim/parser/markdown_inline.so
+- ✅ OK Parser: python                    ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/python.so
+- ✅ OK Parser: qmljs                     ABI: 14, path: /home/akashbiswas/.local/share/nvim/site/parser/qmljs.so
+- ✅ OK Parser: query                     ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/query.so
+- ✅ OK Parser: query                (not loaded), path: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/lib/nvim/parser/query.so
+- ✅ OK Parser: vim                       ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/vim.so
+- ✅ OK Parser: vim                  (not loaded), path: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/lib/nvim/parser/vim.so
+- ✅ OK Parser: vimdoc                    ABI: 15, path: /home/akashbiswas/.local/share/nvim/site/parser/vimdoc.so
+- ✅ OK Parser: vimdoc               (not loaded), path: /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/lib/nvim/parser/vimdoc.so
+
+Treesitter queries ~
+- ✅ OK bash            folds           /home/akashbiswas/.local/share/nvim/site/queries/bash
+- ✅ OK bash            highlights      /home/akashbiswas/.local/share/nvim/site/queries/bash
+- ✅ OK bash            indents         /home/akashbiswas/.local/share/nvim/site/queries/bash
+- ✅ OK bash            injections      /home/akashbiswas/.local/share/nvim/site/queries/bash
+- ✅ OK bash            locals          /home/akashbiswas/.local/share/nvim/site/queries/bash
+- ✅ OK c               folds           /home/akashbiswas/.local/share/nvim/site/queries/c
+- ✅ OK c               folds           /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/c
+- ✅ OK c               highlights      /home/akashbiswas/.local/share/nvim/site/queries/c
+- ✅ OK c               highlights      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/c
+- ✅ OK c               indents         /home/akashbiswas/.local/share/nvim/site/queries/c
+- ✅ OK c               injections      /home/akashbiswas/.local/share/nvim/site/queries/c
+- ✅ OK c               injections      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/c
+- ✅ OK c               locals          /home/akashbiswas/.local/share/nvim/site/queries/c
+- ✅ OK css             images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/css
+- ✅ OK desktop         folds           /home/akashbiswas/.local/share/nvim/site/queries/desktop
+- ✅ OK desktop         highlights      /home/akashbiswas/.local/share/nvim/site/queries/desktop
+- ✅ OK desktop         injections      /home/akashbiswas/.local/share/nvim/site/queries/desktop
+- ✅ OK ecma            folds           /home/akashbiswas/.local/share/nvim/site/queries/ecma
+- ✅ OK ecma            highlights      /home/akashbiswas/.local/share/nvim/site/queries/ecma
+- ✅ OK ecma            indents         /home/akashbiswas/.local/share/nvim/site/queries/ecma
+- ✅ OK ecma            injections      /home/akashbiswas/.local/share/nvim/site/queries/ecma
+- ✅ OK ecma            locals          /home/akashbiswas/.local/share/nvim/site/queries/ecma
+- ✅ OK html            images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/html
+- ✅ OK javascript      images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/javascript
+- ✅ OK latex           images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/latex
+- ✅ OK lua             folds           /home/akashbiswas/.local/share/nvim/site/queries/lua
+- ✅ OK lua             folds           /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/lua
+- ✅ OK lua             highlights      /home/akashbiswas/.local/share/nvim/site/queries/lua
+- ✅ OK lua             highlights      /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/lua
+- ✅ OK lua             highlights      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/lua
+- ✅ OK lua             indents         /home/akashbiswas/.local/share/nvim/site/queries/lua
+- ✅ OK lua             injections      /home/akashbiswas/.local/share/nvim/site/queries/lua
+- ✅ OK lua             injections      /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/lua
+- ✅ OK lua             injections      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/lua
+- ✅ OK lua             locals          /home/akashbiswas/.local/share/nvim/site/queries/lua
+- ✅ OK luap            highlights      /home/akashbiswas/.local/share/nvim/site/queries/luap
+- ✅ OK markdown        folds           /home/akashbiswas/.local/share/nvim/site/queries/markdown
+- ✅ OK markdown        folds           /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/markdown
+- ✅ OK markdown        highlights      /home/akashbiswas/.local/share/nvim/site/queries/markdown
+- ✅ OK markdown        highlights      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/markdown
+- ✅ OK markdown        images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/markdown
+- ✅ OK markdown        indents         /home/akashbiswas/.local/share/nvim/site/queries/markdown
+- ✅ OK markdown        injections      /home/akashbiswas/.local/share/nvim/site/queries/markdown
+- ✅ OK markdown        injections      /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/markdown
+- ✅ OK markdown        injections      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/markdown
+- ✅ OK markdown_inline highlights      /home/akashbiswas/.local/share/nvim/site/queries/markdown_inline
+- ✅ OK markdown_inline highlights      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/markdown_inline
+- ✅ OK markdown_inline images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/markdown_inline
+- ✅ OK markdown_inline injections      /home/akashbiswas/.local/share/nvim/site/queries/markdown_inline
+- ✅ OK markdown_inline injections      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/markdown_inline
+- ✅ OK norg            images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/norg
+- ✅ OK python          folds           /home/akashbiswas/.local/share/nvim/site/queries/python
+- ✅ OK python          highlights      /home/akashbiswas/.local/share/nvim/site/queries/python
+- ✅ OK python          indents         /home/akashbiswas/.local/share/nvim/site/queries/python
+- ✅ OK python          injections      /home/akashbiswas/.local/share/nvim/site/queries/python
+- ✅ OK python          locals          /home/akashbiswas/.local/share/nvim/site/queries/python
+- ✅ OK qmljs           folds           /home/akashbiswas/.local/share/nvim/site/queries/qmljs
+- ✅ OK qmljs           highlights      /home/akashbiswas/.local/share/nvim/site/queries/qmljs
+- ✅ OK qmljs           injections      /home/akashbiswas/.local/share/nvim/site/queries/qmljs
+- ✅ OK query           folds           /home/akashbiswas/.local/share/nvim/site/queries/query
+- ✅ OK query           folds           /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/query
+- ✅ OK query           highlights      /home/akashbiswas/.local/share/nvim/site/queries/query
+- ✅ OK query           highlights      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/query
+- ✅ OK query           indents         /home/akashbiswas/.local/share/nvim/site/queries/query
+- ✅ OK query           injections      /home/akashbiswas/.local/share/nvim/site/queries/query
+- ✅ OK query           locals          /home/akashbiswas/.local/share/nvim/site/queries/query
+- ✅ OK scss            images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/scss
+- ✅ OK svelte          images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/svelte
+- ✅ OK tsx             images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/tsx
+- ✅ OK typst           images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/typst
+- ✅ OK vim             folds           /home/akashbiswas/.local/share/nvim/site/queries/vim
+- ✅ OK vim             folds           /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/vim
+- ✅ OK vim             highlights      /home/akashbiswas/.local/share/nvim/site/queries/vim
+- ✅ OK vim             highlights      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/vim
+- ✅ OK vim             injections      /home/akashbiswas/.local/share/nvim/site/queries/vim
+- ✅ OK vim             injections      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/vim
+- ✅ OK vim             locals          /home/akashbiswas/.local/share/nvim/site/queries/vim
+- ✅ OK vimdoc          highlights      /home/akashbiswas/.local/share/nvim/site/queries/vimdoc
+- ✅ OK vimdoc          highlights      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/vimdoc
+- ✅ OK vimdoc          injections      /home/akashbiswas/.local/share/nvim/site/queries/vimdoc
+- ✅ OK vimdoc          injections      /nix/store/6mnb1qk3ba2bw3l4bndrvdyj6nl4qvy4-neovim-unwrapped-0.12.1/share/nvim/runtime/queries/vimdoc
+- ✅ OK vue             images          /home/akashbiswas/.local/share/nvim/lazy/snacks.nvim/queries/vue
+

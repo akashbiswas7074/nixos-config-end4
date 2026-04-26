@@ -1,0 +1,6 @@
+
+==============================================================================
+blink/cmp:                                                                1 ❌
+
+- ❌ ERROR No healthcheck found for "blink/cmp" plugin.
+

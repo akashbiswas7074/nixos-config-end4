@@ -71,7 +71,7 @@ let
       src = localAntigrav;
       nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper ];
       buildInputs = with pkgs; [
-        at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL xorg.libX11 xorg.libXcomposite xorg.libXcursor xorg.libXdamage xorg.libXext xorg.libXfixes xorg.libXi xorg.libXrandr xorg.libXrender xorg.libXtst libdrm libgbm libnotify libsecret libuuid xorg.libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 xorg.libxkbfile webkitgtk_4_1
+        at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile webkitgtk_4_1
       ];
       installPhase = ''
         mkdir -p $out/bin $out/opt/antigravity
@@ -187,6 +187,24 @@ antigravity
     stdenv.cc.cc
     zlib
     zstd
+    openssl
+    curl
+    expat
+    libxml2
+    xz
+    icu
+    libglvnd
+    mesa
+    libGL
+    libx11
+    libxext
+    libxrender
+    libxinerama
+    libxcursor
+    libxcomposite
+    libxdamage
+    libxrandr
+    libsecret
   ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];

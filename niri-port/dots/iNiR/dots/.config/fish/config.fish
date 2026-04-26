@@ -19,5 +19,13 @@ if status is-interactive
     if command -v eza &>/dev/null
         alias ls 'eza --icons'
     end
+
     alias q 'qs -c ii'
+
+    # >>> mamba initialize >>>
+    # !! Contents within this block are managed by 'micromamba shell init' !!
+    set -gx MAMBA_EXE "/nix/store/11105gqwz8ki86j3qspqhyykxddwyibq-micromamba-2.4.0/bin/micromamba"
+    set -gx MAMBA_ROOT_PREFIX "/home/akashbiswas/micromamba"
+    $MAMBA_EXE shell hook --shell fish --root-prefix $MAMBA_ROOT_PREFIX | source
+    # <<< mamba initialize <<<
 end

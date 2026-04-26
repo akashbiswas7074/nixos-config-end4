@@ -58,8 +58,29 @@
                 jq
                 fish
                 neovim
+                lazygit
+                nodejs
+                gdu
+                bottom
+                cargo
+                lua51Packages.luarocks
+                luajit
+                ruby
+                php
+                phpPackages.composer
+                jdk
+                julia
+                fd
+                sqlite
+                ghostscript
+                tectonic
+                mermaid-cli
+                gcc
+                gnumake
                 unzip
-                (python3.withPackages (ps: with ps; [ pynvim jupyter-client ipykernel nbformat pyperclip plotly cairosvg pnglatex ]))
+                tree-sitter
+                micromamba
+                (python3.withPackages (ps: with ps; [ pynvim jupyter-client ipykernel nbformat pyperclip plotly cairosvg pnglatex kaleido pip setuptools ]))
                 imagemagick
                 grim
                 cliphist
@@ -147,6 +168,10 @@
           default = pkgs.mkShell {
             packages = [
               pkgs.home-manager
+              pkgs.gcc
+              pkgs.gnumake
+              pkgs.sqlite
+              pkgs.micromamba
               (pkgs.callPackage ./niri-port/inir-quickshell-python.nix { })
             ];
             shellHook = ''

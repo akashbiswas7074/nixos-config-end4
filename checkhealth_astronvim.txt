@@ -1,0 +1,17 @@
+
+==============================================================================
+astronvim:                                                                  ✅
+
+Checking requirements ~
+- AstroNvim Version: v6.0.4
+- Neovim Version: v0.12.1
+- ✅ OK Using stable Neovim >= 0.11.0
+- ✅ OK `git` is installed: Used for core functionality such as updater and plugin management
+- ✅ OK `xdg-open` is installed: Used for `gx` mapping for opening files with system opener (Optional)
+- ✅ OK `rg` is installed: Used for Pickers `live_grep` picker, `<Leader>fw` and `<Leader>fW` by default (Optional)
+- ✅ OK `lazygit` is installed: Used for mappings to pull up git TUI (Optional)
+- ✅ OK `node` is installed: Used for mappings to pull up node REPL (Optional)
+- ✅ OK `gdu` is installed: Used for mappings to pull up disk usage analyzer (Optional)
+- ✅ OK `btm` is installed: Used for mappings to pull up system monitor (Optional)
+- ✅ OK `python` is installed: Used for mappings to pull up python REPL (Optional)
+
