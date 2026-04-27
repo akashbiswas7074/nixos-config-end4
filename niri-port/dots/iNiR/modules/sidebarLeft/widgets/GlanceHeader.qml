@@ -16,6 +16,9 @@ Item {
         const cleaned = (env.split(".")[0] ?? "").split("@")[0] ?? ""
         return cleaned ? Qt.locale(cleaned) : Qt.locale()
     }
+    function openManageWidgets(): void {
+        Config.execInirDetached(["settings"])
+    }
 
     ColumnLayout {
         id: col
@@ -192,21 +195,9 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            const isWaffle = (Config.options?.panelFamily === "waffle" && Config.options?.waffles?.settings?.useMaterialStyle !== true)
-                            const pageIndex = isWaffle ? 6 : 5
-                            const section = isWaffle ? Translation.tr("Widgets Panel") : Translation.tr("Widgets")
-                            const inirPath = String(Quickshell.shellPath("scripts/inir")).replace(/^file:\/\//, "")
-                            const inirEsc = StringUtils.shellSingleQuoteEscape(inirPath)
-                            const sectionEsc = StringUtils.shellSingleQuoteEscape(section)
-                            const cmd = Config.subprocessPathShExport()
-                                + `export QS_SETTINGS_PAGE='${pageIndex}' QS_SETTINGS_SECTION='${sectionEsc}'; `
-                                + `exec '${inirEsc}' ${isWaffle ? "waffle-settings-window" : "settings-window"}`
-                            Quickshell.execDetached(["bash", "-c", cmd])
-                        }
+                        onClicked: root.openManageWidgets()
                     }
 
-                    StyledToolTip { text: Translation.tr("Manage Widgets") }
                 }
             }
         }
@@ -227,4 +218,10 @@ Item {
             }
         }
     }
+
+    WidgetSettingsMenu {
+        id: widgetSettingsMenu
+        anchorItem: settingsBtn
+    }
+
 }

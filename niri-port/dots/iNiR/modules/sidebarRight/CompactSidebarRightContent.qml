@@ -1825,7 +1825,17 @@ Item {
                 icon: "travel_explore"
                 label: Translation.tr("Search")
                 onClicked: {
-                    Config.execInirDetached(["region", "search"])
+                    Quickshell.execDetached([
+                        "/run/current-system/sw/bin/bash",
+                        "-c",
+                        Config.subprocessSessionShExport()
+                            + `NOTIFY_BIN="${Config.nixosSystemProfileBin}/notify-send"; [ -x "$NOTIFY_BIN" ] || NOTIFY_BIN="notify-send"; `
+                            + `"$NOTIFY_BIN" "Search" "Select a region to search" -a "Quick Actions" -t 1200 >/dev/null 2>&1 || true; `
+                            + `INIR_BIN='${Config.nixosSystemProfileBin}/inir'; `
+                            + `[ -x "$INIR_BIN" ] || INIR_BIN="$HOME/.nix-profile/bin/inir"; `
+                            + `[ -x "$INIR_BIN" ] || INIR_BIN="inir"; `
+                            + `exec "$INIR_BIN" region search`
+                    ])
                     GlobalStates.sidebarRightOpen = false
                 }
             }

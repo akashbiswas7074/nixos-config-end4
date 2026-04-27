@@ -262,7 +262,7 @@ PanelWindow {
     }
     readonly property string _homePathNoProto: FileUtils.trimFileProtocol(Directories.home)
     readonly property string _grimToFileBash: {
-        const pathPre = Config.subprocessPathShExport();
+        const pathPre = Config.subprocessSessionShExport();
         const d = StringUtils.shellSingleQuoteEscape(root.screenshotDir);
         const f = StringUtils.shellSingleQuoteEscape(root.screenshotPath);
         const o = root.grimOutputName;
@@ -423,15 +423,16 @@ PanelWindow {
         const cropBase = `magick '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' `
             + `-crop ${rw}x${rh}+${rx}+${ry}`
         const cropToStdout = `${cropBase} -`
-        const cropInPlace = `${cropBase} '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}'`
+        const cropInPlace = `_tmp_crop="$(mktemp --suffix=.png /tmp/inir-region-XXXXXX)"; `
+            + `${cropBase} +repage "$_tmp_crop" && mv "$_tmp_crop" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}'`
         const cleanup = `rm '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}'`
         const slurpRegion = `${rx},${ry} ${rw}x${rh}`
         const screenshotSaveDir = StringUtils.shellSingleQuoteEscape(Directories.screenshotsPath)
         const uploadAndGetUrl = (filePath) => {
             const escaped = StringUtils.shellSingleQuoteEscape(filePath)
-            const primary = `"$CURL_BIN" -sf --max-time 10 -F file=@'${escaped}' ${root.fileUploadApiEndpoint}`
-            const fallback1 = `"$CURL_BIN" -s --max-time 15 -F reqtype=fileupload -F time=1h -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback}`
-            const fallback2 = `"$CURL_BIN" -s --max-time 15 -F reqtype=fileupload -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback2}`
+            const primary = `"$CURL_BIN" -sf --max-time 4 -F file=@'${escaped}' ${root.fileUploadApiEndpoint}`
+            const fallback1 = `"$CURL_BIN" -s --max-time 6 -F reqtype=fileupload -F time=1h -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback}`
+            const fallback2 = `"$CURL_BIN" -s --max-time 6 -F reqtype=fileupload -F "fileToUpload=@'${escaped}'" ${root.fileUploadApiFallback2}`
             // Try primary, then fallback1, then fallback2 and extract first URL via bash regex.
             return `resp="$(${primary} 2>/dev/null || true)"; url=""; `
                 + `if [[ "$resp" =~ (https?://[^[:space:]\"]+) ]]; then url="\${BASH_REMATCH[1]}"; fi; `
@@ -449,21 +450,20 @@ PanelWindow {
                 snipProc.command = ["bash", "-c", pathPre + `${cropToStdout} | ${annotationCommand} && ${cleanup}`]
                 break;
             case RegionSelection.SnipAction.Search:
-                snipProc.command = ["bash", "-c", pathPre
-                    + `CURL_BIN="$HOME/.nix-profile/bin/curl"; [ -x "$CURL_BIN" ] || CURL_BIN="/run/current-system/sw/bin/curl"; [ -x "$CURL_BIN" ] || CURL_BIN="curl"; `
-                    + `XDG_OPEN_BIN="$HOME/.nix-profile/bin/xdg-open"; [ -x "$XDG_OPEN_BIN" ] || XDG_OPEN_BIN="/run/current-system/sw/bin/xdg-open"; [ -x "$XDG_OPEN_BIN" ] || XDG_OPEN_BIN="xdg-open"; `
-                    + `GIO_BIN="$HOME/.nix-profile/bin/gio"; [ -x "$GIO_BIN" ] || GIO_BIN="/run/current-system/sw/bin/gio"; [ -x "$GIO_BIN" ] || GIO_BIN="gio"; `
-                    + `GRIM_BIN="$HOME/.nix-profile/bin/grim"; [ -x "$GRIM_BIN" ] || GRIM_BIN="/run/current-system/sw/bin/grim"; [ -x "$GRIM_BIN" ] || GRIM_BIN="grim"; `
-                    + `if [[ ! -s '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' ]]; then "$GRIM_BIN" -g '${slurpRegion}' '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' >/dev/null 2>&1 || true; fi; `
-                    + `if command -v magick >/dev/null 2>&1; then ${cropInPlace} || true; fi; `
-                    + `uploaded_url="$(${uploadAndGetUrl(root.screenshotPath)})"; `
-                    + `engine="${root.effectiveImageSearchEngineBaseUrl}"; if [[ -z "$engine" || "$engine" == "https://yandex.com/images/search?rpt=imageview&url=" ]]; then engine="https://lens.google.com/uploadbyurl?url="; fi; `
-                    + `printf 'uploaded_url=%s\nengine=%s\nfile=%s\n' "$uploaded_url" "$engine" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' > /tmp/inir-image-search.log; `
-                    + `if [[ -n "$uploaded_url" && "$uploaded_url" == http* ]]; then `
-                    + `target_url="\${engine}\${uploaded_url}"; `
-                    + `"$XDG_OPEN_BIN" "$target_url" >/dev/null 2>&1 || "$GIO_BIN" open "$target_url" >/dev/null 2>&1 || { printf '%s' "$target_url" | wl-copy; notify-send "Image search link copied" "$target_url" -a "Image Search" -i image; }; `
-                    + `else notify-send "Image search failed" "Could not upload the image for reverse search" -a "Image Search" -i image; `
-                    + `fi; ${cleanup}`]
+                const lensScript = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Quickshell.shellPath("scripts/search/lens-search.sh")))
+                const imgPath = StringUtils.shellSingleQuoteEscape(root.screenshotPath)
+                const engineUrl = StringUtils.shellSingleQuoteEscape(root.effectiveImageSearchEngineBaseUrl)
+                const uploadPrimary = StringUtils.shellSingleQuoteEscape(root.fileUploadApiEndpoint)
+                const uploadFallback1 = StringUtils.shellSingleQuoteEscape(root.fileUploadApiFallback)
+                const uploadFallback2 = StringUtils.shellSingleQuoteEscape(root.fileUploadApiFallback2)
+                const sessionPre = Config.subprocessSessionShExport()
+                snipProc.command = [`${Config.nixosSystemProfileBin}/bash`, "-c",
+                    sessionPre
+                    + `GRIM_BIN="${Config.nixosSystemProfileBin}/grim"; [ -x "$GRIM_BIN" ] || GRIM_BIN="$HOME/.nix-profile/bin/grim"; [ -x "$GRIM_BIN" ] || GRIM_BIN="grim"; `
+                    + `if ! command -v "$GRIM_BIN" >/dev/null 2>&1; then notify-send "Image search failed" "grim not found" -a "Image Search" -t 3000; exit 127; fi; `
+                    + `"$GRIM_BIN" -g '${slurpRegion}' '${imgPath}' && `
+                    + `exec '${lensScript}' '${imgPath}' '${engineUrl}' '${uploadPrimary}' '${uploadFallback1}' '${uploadFallback2}'`
+                ]
                 break;
             case RegionSelection.SnipAction.CharRecognition:
                 snipProc.command = ["bash", "-c", pathPre
@@ -472,9 +472,8 @@ PanelWindow {
                     + `WLCOPY_BIN="$HOME/.nix-profile/bin/wl-copy"; [ -x "$WLCOPY_BIN" ] || WLCOPY_BIN="/run/current-system/sw/bin/wl-copy"; [ -x "$WLCOPY_BIN" ] || WLCOPY_BIN="wl-copy"; `
                     + `if ! command -v "$TESS_BIN" >/dev/null 2>&1; then notify-send "OCR failed" "tesseract not found" -a "OCR" -i edit-find -t 3000; ${cleanup}; exit 127; fi; `
                     + `if ! command -v "$WLCOPY_BIN" >/dev/null 2>&1; then notify-send "OCR failed" "wl-copy not found" -a "OCR" -i edit-find -t 3000; ${cleanup}; exit 127; fi; `
-                    + `LANGS="$("$TESS_BIN" --list-langs 2>/dev/null | awk 'NR>1{print $1}' | paste -sd+ -)"; `
-                    + `if [[ -n "$LANGS" ]]; then OCR_TEXT="$("$TESS_BIN" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout -l "$LANGS" 2>/dev/null || true)"; `
-                    + `else OCR_TEXT="$("$TESS_BIN" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout 2>/dev/null || true)"; fi; `
+                    + `LANGS="eng+osd"; `
+                    + `OCR_TEXT="$("$TESS_BIN" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout -l "$LANGS" 2>/dev/null || "$TESS_BIN" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout 2>/dev/null || true)"; `
                     + `OCR_TEXT="$(printf '%s' "$OCR_TEXT" | sed '/^[[:space:]]*$/d')"; `
                     + `if [[ -z "$OCR_TEXT" ]]; then notify-send "OCR finished" "No text detected in selection" -a "OCR" -i edit-find -t 3000; `
                     + `else printf '%s' "$OCR_TEXT" | "$WLCOPY_BIN"; printf '%s' "$OCR_TEXT" | "$WLCOPY_BIN" --primary; notify-send "Text recognized" "OCR text copied to clipboard" -a "OCR" -i edit-find -t 3000; fi; `
@@ -540,8 +539,12 @@ PanelWindow {
             onReleased: (mouse) => {
                 // Detect if it was a click -> Try to select targeted region
                 if (root.draggingX === root.dragStartX && root.draggingY === root.dragStartY) {
-                    if (root.targetedRegionValid()) {
+                    if (root.action !== RegionSelection.SnipAction.Search && root.targetedRegionValid()) {
                         root.setRegionToTargeted();
+                    } else if (root.action === RegionSelection.SnipAction.Search) {
+                        root.dragging = false;
+                        root.points = [];
+                        return;
                     }
                 }
                 // Circle dragging?

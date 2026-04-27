@@ -94,11 +94,24 @@ let
         at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile webkitgtk_4_1
       ];
       installPhase = ''
-        mkdir -p $out/bin $out/opt/antigravity
+        mkdir -p $out/bin $out/opt/antigravity $out/share/applications $out/share/pixmaps
         cp -r . $out/opt/antigravity/
         chmod +x $out/opt/antigravity/antigravity
         makeWrapper $out/opt/antigravity/antigravity $out/bin/antigravity \
           --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [ at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile webkitgtk_4_1 ])}
+
+        # Icon
+        cp $out/opt/antigravity/resources/app/resources/linux/code.png $out/share/pixmaps/antigravity.png
+
+        # Desktop Entry
+        cat > $out/share/applications/antigravity.desktop <<EOF
+[Desktop Entry]
+Name=Antigravity
+Exec=antigravity
+Icon=antigravity
+Type=Application
+Categories=Development;
+EOF
       '';
     })
   ] ++ lib.optionals (builtins.pathExists localCode) [
@@ -108,15 +121,28 @@ let
       src = localCode;
       nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper ];
       buildInputs = with pkgs; [
-        at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile
+        at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile webkitgtk_4_1
       ];
       installPhase = ''
-        mkdir -p $out/bin $out/opt/vscode
-        cp -r VSCode-linux-x64/* $out/opt/vscode/
+        mkdir -p $out/bin $out/opt/vscode $out/share/applications $out/share/pixmaps
+        cp -r . $out/opt/vscode/
         chmod +x $out/opt/vscode/code
         makeWrapper $out/opt/vscode/code $out/bin/code-local \
           --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [ at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile ])} \
           --add-flags "--no-sandbox"
+
+        # Icon
+        cp $out/opt/vscode/resources/app/resources/linux/code.png $out/share/pixmaps/vscode-local.png
+
+        # Desktop Entry
+        cat > $out/share/applications/vscode-local.desktop <<EOF
+[Desktop Entry]
+Name=VS Code (Local)
+Exec=code-local
+Icon=vscode-local
+Type=Application
+Categories=Development;TextEditor;
+EOF
       '';
     })
   ];
@@ -207,11 +233,10 @@ in
     vim
     wget
     git
-    vscode
+    # vscode
     # cursor
     # code-cursor
     google-chrome
-antigravity
     vlc
     foot          
     kitty         
