@@ -466,7 +466,19 @@ PanelWindow {
                     + `fi; ${cleanup}`]
                 break;
             case RegionSelection.SnipAction.CharRecognition:
-                snipProc.command = ["bash", "-c", pathPre + `${cropInPlace} && tesseract '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout -l $(tesseract --list-langs | awk 'NR>1{print $1}' | tr '\\n' '+' | sed 's/\\+$/\\n/') | tee >(wl-copy --primary) | wl-copy && ${cleanup} && notify-send "Text recognized" "OCR text copied to clipboard" -a "OCR" -i edit-find -t 3000`]
+                snipProc.command = ["bash", "-c", pathPre
+                    + `${cropInPlace} && `
+                    + `TESS_BIN="$HOME/.nix-profile/bin/tesseract"; [ -x "$TESS_BIN" ] || TESS_BIN="/run/current-system/sw/bin/tesseract"; [ -x "$TESS_BIN" ] || TESS_BIN="tesseract"; `
+                    + `WLCOPY_BIN="$HOME/.nix-profile/bin/wl-copy"; [ -x "$WLCOPY_BIN" ] || WLCOPY_BIN="/run/current-system/sw/bin/wl-copy"; [ -x "$WLCOPY_BIN" ] || WLCOPY_BIN="wl-copy"; `
+                    + `if ! command -v "$TESS_BIN" >/dev/null 2>&1; then notify-send "OCR failed" "tesseract not found" -a "OCR" -i edit-find -t 3000; ${cleanup}; exit 127; fi; `
+                    + `if ! command -v "$WLCOPY_BIN" >/dev/null 2>&1; then notify-send "OCR failed" "wl-copy not found" -a "OCR" -i edit-find -t 3000; ${cleanup}; exit 127; fi; `
+                    + `LANGS="$("$TESS_BIN" --list-langs 2>/dev/null | awk 'NR>1{print $1}' | paste -sd+ -)"; `
+                    + `if [[ -n "$LANGS" ]]; then OCR_TEXT="$("$TESS_BIN" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout -l "$LANGS" 2>/dev/null || true)"; `
+                    + `else OCR_TEXT="$("$TESS_BIN" '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}' stdout 2>/dev/null || true)"; fi; `
+                    + `OCR_TEXT="$(printf '%s' "$OCR_TEXT" | sed '/^[[:space:]]*$/d')"; `
+                    + `if [[ -z "$OCR_TEXT" ]]; then notify-send "OCR finished" "No text detected in selection" -a "OCR" -i edit-find -t 3000; `
+                    + `else printf '%s' "$OCR_TEXT" | "$WLCOPY_BIN"; printf '%s' "$OCR_TEXT" | "$WLCOPY_BIN" --primary; notify-send "Text recognized" "OCR text copied to clipboard" -a "OCR" -i edit-find -t 3000; fi; `
+                    + `${cleanup}`]
                 break;
             case RegionSelection.SnipAction.Record:
                 snipProc.command = ["bash", "-c", pathPre + `${Directories.recordScriptPath} --region '${slurpRegion}'`]

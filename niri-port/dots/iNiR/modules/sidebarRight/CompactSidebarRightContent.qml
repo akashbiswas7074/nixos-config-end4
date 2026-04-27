@@ -1815,12 +1815,7 @@ Item {
                 icon: "document_scanner"
                 label: Translation.tr("OCR")
                 onClicked: {
-                    const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
-                    Quickshell.execDetached([
-                        "bash",
-                        "-c",
-                        Config.subprocessPathShExport() + `exec '${inirEsc}' region ocr`
-                    ])
+                    Config.execInirDetached(["region", "ocr"])
                     GlobalStates.sidebarRightOpen = false
                 }
             }
@@ -1830,13 +1825,7 @@ Item {
                 icon: "travel_explore"
                 label: Translation.tr("Search")
                 onClicked: {
-                    const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
-                    Quickshell.execDetached([
-                        "bash",
-                        "-c",
-                        Config.subprocessPathShExport()
-                            + `exec '${inirEsc}' region search`
-                    ])
+                    Config.execInirDetached(["region", "search"])
                     GlobalStates.sidebarRightOpen = false
                 }
             }

@@ -148,8 +148,13 @@ Singleton {
     /// often fails: the shebang uses `/usr/bin/env bash`, and env needs PATH to find bash.
     function execInirDetached(parts) {
         const list = Array.isArray(parts) ? parts : [];
-        const inirEsc = root._shellSingleQuoteSh(root._trimFileUrl(Quickshell.shellPath("scripts/inir")));
-        let cmd = root.subprocessPathShExport() + `exec '${inirEsc}'`;
+        const bundledInir = root._shellSingleQuoteSh(root._trimFileUrl(Quickshell.shellPath("scripts/inir")));
+        let cmd = root.subprocessSessionShExport()
+            + `INIR_BIN='${root.nixosSystemProfileBin}/inir'; `
+            + `[ -x "$INIR_BIN" ] || INIR_BIN="$HOME/.nix-profile/bin/inir"; `
+            + `[ -x "$INIR_BIN" ] || INIR_BIN="$(command -v inir 2>/dev/null || true)"; `
+            + `[ -n "$INIR_BIN" ] || INIR_BIN='${bundledInir}'; `
+            + `exec "$INIR_BIN"`;
         for (let i = 0; i < list.length; ++i) {
             cmd += ` '${root._shellSingleQuoteSh(list[i])}'`;
         }

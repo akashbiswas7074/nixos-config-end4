@@ -42,6 +42,7 @@ let
   # Use files directly from Download folder to avoid large binary commits.
   localCursor = /home/akashbiswas/Desktop/control/Download/Cursor-3.2.11-x86_64.AppImage;
   localAntigrav = /home/akashbiswas/Desktop/control/Download/Antigravity.tar.gz;
+  localCode = /home/akashbiswas/Desktop/control/Download/code-stable-x64-1776814219.tar.gz;
   customApps = let
     appimageContents = if builtins.pathExists localCursor then pkgs.appimageTools.extractType2 {
       pname = "cursor";
@@ -97,7 +98,25 @@ let
         cp -r . $out/opt/antigravity/
         chmod +x $out/opt/antigravity/antigravity
         makeWrapper $out/opt/antigravity/antigravity $out/bin/antigravity \
-          --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath buildInputs}
+          --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [ at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile webkitgtk_4_1 ])}
+      '';
+    })
+  ] ++ lib.optionals (builtins.pathExists localCode) [
+    (pkgs.stdenv.mkDerivation {
+      pname = "vscode-local";
+      version = "stable";
+      src = localCode;
+      nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper ];
+      buildInputs = with pkgs; [
+        at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile
+      ];
+      installPhase = ''
+        mkdir -p $out/bin $out/opt/vscode
+        cp -r VSCode-linux-x64/* $out/opt/vscode/
+        chmod +x $out/opt/vscode/code
+        makeWrapper $out/opt/vscode/code $out/bin/code-local \
+          --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [ at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile ])} \
+          --add-flags "--no-sandbox"
       '';
     })
   ];
@@ -202,6 +221,7 @@ antigravity
     swaylock      
     libnotify     
     wl-clipboard
+    tesseract
     wf-recorder
     ffmpeg
     slurp
