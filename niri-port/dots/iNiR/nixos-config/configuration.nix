@@ -39,11 +39,9 @@ let
     exec ${dellGControllerPython}/bin/python3 main.py
   '';
 
-  # Nix cannot read /home/.../Download in *pure* flake mode. Copy the files here, then
-  #   git add -f local/Cursor-3.2.11-x86_64.AppImage local/Antigravity.tar.gz
-  # (or your versions’ names) so the flake can see them. Otherwise skip these packages.
-  localCursor = ./local/Cursor-3.2.11-x86_64.AppImage;
-  localAntigrav = ./local/Antigravity.tar.gz;
+  # Use files directly from Download folder to avoid large binary commits.
+  localCursor = /home/akashbiswas/Desktop/control/Download/Cursor-3.2.11-x86_64.AppImage;
+  localAntigrav = /home/akashbiswas/Desktop/control/Download/Antigravity.tar.gz;
   customApps = let
     appimageContents = if builtins.pathExists localCursor then pkgs.appimageTools.extractType2 {
       pname = "cursor";
