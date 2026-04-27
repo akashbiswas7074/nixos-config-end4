@@ -51,17 +51,38 @@ let
       src = localCursor;
     } else null;
   in lib.optionals (builtins.pathExists localCursor) [
-    (pkgs.appimageTools.wrapType2 {
+    (pkgs.stdenv.mkDerivation {
       pname = "cursor";
       version = "3.2.11";
-      src = localCursor;
-      extraPkgs = p: with p; [ libsecret ];
-      extraInstallCommands = ''
-        install -m 444 -D ${appimageContents}/cursor.desktop -t $out/share/applications
+      src = appimageContents;
+      nativeBuildInputs = [ pkgs.makeWrapper ];
+      buildInputs = with pkgs; [
+        glib nss nspr at-spi2-atk at-spi2-core atk cups libdrm gtk3 mesa
+        libsecret pango cairo alsa-lib dbus expat fontconfig freetype
+        gdk-pixbuf xorg.libX11 xorg.libXcomposite xorg.libXcursor xorg.libXdamage xorg.libXext
+        xorg.libXfixes xorg.libXi xorg.libXrandr xorg.libXrender xorg.libXtst libuuid xorg.libxcb
+        xorg.libxshmfence libxkbcommon libgbm systemd
+      ];
+      installPhase = ''
+        mkdir -p $out/bin $out/share/applications $out/share/cursor
+        cp -r . $out/share/cursor
+        
+        makeWrapper $out/share/cursor/usr/bin/cursor $out/bin/cursor \
+          --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [
+            stdenv.cc.cc.lib zlib zstd openssl curl expat libxml2 xz icu
+            libglvnd mesa libGL xorg.libX11 xorg.libXext xorg.libXrender xorg.libXinerama
+            xorg.libXcursor xorg.libXcomposite xorg.libXdamage xorg.libXrandr xorg.libXfixes
+            xorg.libXi xorg.libXtst libsecret at-spi2-atk atk alsa-lib cairo cups dbus
+            fontconfig freetype gdk-pixbuf glib gtk3 libdrm libgbm libnotify libuuid
+            xorg.libxcb xorg.libxshmfence libxkbcommon nss nspr pango systemd libsoup_3 libxkbfile
+          ])} \
+          --add-flags "--no-sandbox"
+          
+        install -m 444 -D $out/share/cursor/cursor.desktop -t $out/share/applications
         substituteInPlace $out/share/applications/cursor.desktop \
           --replace 'Exec=AppRun' 'Exec=cursor' \
           --replace 'Exec=cursor %F' 'Exec=cursor' || true
-        cp -r ${appimageContents}/usr/share/icons $out/share
+        cp -r $out/share/cursor/usr/share/icons $out/share || true
       '';
     })
   ] ++ lib.optionals (builtins.pathExists localAntigrav) [
@@ -208,6 +229,7 @@ antigravity
   ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  services.envfs.enable = true;
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
   xdg.portal.enable = true;
