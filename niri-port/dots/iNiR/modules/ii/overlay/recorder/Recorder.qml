@@ -17,14 +17,13 @@ StyledOverlayWidget {
     minimumHeight: 160
 
     function _execRecordScript(args) {
-        const fishPath = `${FileUtils.trimFileProtocol(Directories.home)}/.nix-profile/bin/fish`;
         const rec = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath));
         let cmdline = `'${rec}'`;
         if (Array.isArray(args) && args.length > 0) {
             for (let i = 0; i < args.length; ++i)
                 cmdline += ` '${StringUtils.shellSingleQuoteEscape(args[i])}'`;
         }
-        const cmd = [fishPath, "-c", cmdline];
+        const cmd = ["bash", "-c", Config.subprocessSessionShExport() + "exec " + cmdline];
         Quickshell.execDetached(cmd);
     }
 

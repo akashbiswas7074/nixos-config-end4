@@ -14,7 +14,6 @@ Item {
     id: root
     // NixOS: execDetached / niri / hyprpicker need resolvable paths (see Quickshell INITIAL_ENVIRONMENT)
     readonly property string _bash: Config.nixosSystemProfileBin + "/bash"
-    readonly property string _fish: `${root._homeNoProto}/.nix-profile/bin/fish`
     readonly property string _niri: Config.nixosSystemProfileBin + "/niri"
     readonly property string _hyprpicker: Config.nixosSystemProfileBin + "/hyprpicker"
     readonly property string _homeNoProto: FileUtils.trimFileProtocol(Directories.home)
@@ -95,8 +94,24 @@ Item {
                     anchors.fill: parent
 
                     onClicked: {
-                        const rec = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath))
-                        Quickshell.execDetached([root._fish, "-c", `'${rec}' --fullscreen --sound`])
+                        const recPath = FileUtils.trimFileProtocol(Directories.recordScriptPath)
+                        const notify = Config.nixosSystemProfileBin + "/notify-send"
+                        const systemdRun = Config.nixosSystemProfileBin + "/systemd-run"
+                        const bashPath = Config.nixosSystemProfileBin + "/bash"
+                        const pathEnv = `PATH=${Config.subprocessPath()}`
+                        const xdgRuntimeDir = String(Quickshell.env("XDG_RUNTIME_DIR") ?? "")
+                        const waylandDisplay = String(Quickshell.env("WAYLAND_DISPLAY") ?? "")
+                        const dbusAddress = String(Quickshell.env("DBUS_SESSION_BUS_ADDRESS") ?? "")
+                        Quickshell.execDetached([notify, "Recorder button", "Click received"])
+                        const baseArgs = [systemdRun, "--user", "--collect", "--quiet", `--setenv=${pathEnv}`]
+                        if (xdgRuntimeDir.length > 0)
+                            baseArgs.push(`--setenv=XDG_RUNTIME_DIR=${xdgRuntimeDir}`)
+                        if (waylandDisplay.length > 0)
+                            baseArgs.push(`--setenv=WAYLAND_DISPLAY=${waylandDisplay}`)
+                        if (dbusAddress.length > 0)
+                            baseArgs.push(`--setenv=DBUS_SESSION_BUS_ADDRESS=${dbusAddress}`)
+                        const args = [...baseArgs, bashPath, recPath, "--toggle-fullscreen-sound"]
+                        Quickshell.execDetached(args)
                         Qt.callLater(root.refreshRecordingState)
                     }
 

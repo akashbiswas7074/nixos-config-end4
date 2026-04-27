@@ -120,6 +120,21 @@ Singleton {
         return "export PATH='" + esc + "'; ";
     }
 
+    /// PATH + session variables needed by Wayland tools when launched detached.
+    function subprocessSessionShExport(): string {
+        let out = root.subprocessPathShExport();
+        const xdgRuntime = String(Quickshell.env("XDG_RUNTIME_DIR") ?? "");
+        const waylandDisplay = String(Quickshell.env("WAYLAND_DISPLAY") ?? "");
+        const dbusAddress = String(Quickshell.env("DBUS_SESSION_BUS_ADDRESS") ?? "");
+        if (xdgRuntime.length > 0)
+            out += "export XDG_RUNTIME_DIR='" + xdgRuntime.replace(/'/g, "'\\''") + "'; ";
+        if (waylandDisplay.length > 0)
+            out += "export WAYLAND_DISPLAY='" + waylandDisplay.replace(/'/g, "'\\''") + "'; ";
+        if (dbusAddress.length > 0)
+            out += "export DBUS_SESSION_BUS_ADDRESS='" + dbusAddress.replace(/'/g, "'\\''") + "'; ";
+        return out;
+    }
+
     function _trimFileUrl(p) {
         const s = String(p ?? "");
         return s.replace(/^file:\/\//, "").replace(/^file:/, "");
@@ -459,7 +474,10 @@ Singleton {
             property JsonObject idle: JsonObject {
                 property int screenOffTimeout: 300 // seconds, 0 = disabled
                 property int lockTimeout: 600 // seconds, 0 = disabled
-                property int suspendTimeout: 0 // seconds, 0 = disabled
+                property int suspendTimeout: 900 // seconds, 0 = disabled
+                // After an idle-driven suspend, ignore further idle suspends for this many seconds
+                // (avoids suspend loops when Bluetooth/USB wakes the machine while input is still idle).
+                property int suspendCooldownSec: 120
                 property bool lockBeforeSleep: true
             }
 
@@ -1323,7 +1341,7 @@ Singleton {
                         {
                             "icon": "folder",
                             "name": "Files",
-                            "cmd": "nautilus"
+                            "cmd": "thunar"
                         },
                         {
                             "icon": "terminal",
@@ -1442,6 +1460,7 @@ Singleton {
             property JsonObject screenRecord: JsonObject {
                 property bool showOsd: false
                 property bool showNotifications: true
+                property bool recordWithSound: true
                 property string savePath: "" // Empty = use XDG Videos or ~/Videos
                 property string qualityPreset: "balanced"
                 property string videoCodec: "libx264"

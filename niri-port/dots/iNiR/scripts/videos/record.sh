@@ -14,6 +14,14 @@ first_exec() {
     return 1
 }
 
+# Recover identity vars when launched from stripped transient environments.
+if [[ -z "${USER:-}" ]]; then
+    USER="$(id -un 2>/dev/null || true)"
+fi
+if [[ -z "${HOME:-}" ]]; then
+    HOME="$(getent passwd "$(id -u)" 2>/dev/null | cut -d: -f6)"
+fi
+
 home_bin="${HOME}/.nix-profile/bin"
 user_bin="/etc/profiles/per-user/${USER:-akashbiswas}/bin"
 sys_bin="/run/current-system/sw/bin"
@@ -58,6 +66,10 @@ is_hw_codec() {
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/quickshell/user"
 recorder_safe_marker="$state_dir/recorder-safe-mode"
 last_recording_path_file="$state_dir/last-recording-path"
+recorder_last_start_ms_file="$state_dir/recorder-last-start-ms"
+recorder_start_cooldown_ms=1200
+
+mkdir -p "$state_dir" 2>/dev/null || true
 
 is_nvidia_gpu() {
     command -v nvidia-smi &>/dev/null && nvidia-smi &>/dev/null
@@ -318,25 +330,18 @@ start_recording_command() {
         preferred_cmd+=(--geometry "$geometry")
         fallback_cmd+=(--geometry "$geometry")
     else
-        preferred_cmd+=(-o "$(getactivemonitor)")
-        fallback_cmd+=(-o "$(getactivemonitor)")
+        local active_monitor=""
+        active_monitor="$(getactivemonitor)"
+        if [[ -n "$active_monitor" ]]; then
+            preferred_cmd+=(-o "$active_monitor")
+            fallback_cmd+=(-o "$active_monitor")
+        fi
     fi
 
     preferred_cmd+=("${common_args[@]}" "${audio_args[@]}")
+    # Safe fallback intentionally drops audio capture; this avoids hard failures
+    # when audio backends/sources are unavailable in detached session contexts.
     fallback_cmd+=("${fallback_common_args[@]}")
-    if [[ $SOUND_FLAG -eq 1 ]]; then
-        local fallback_audio_device
-        fallback_audio_device="$(resolve_audio_device)"
-        if [[ -n "$fallback_audio_device" ]]; then
-            fallback_cmd+=(--audio="$fallback_audio_device")
-        else
-            fallback_cmd+=(--audio)
-        fi
-        [[ -n "$AUDIO_BACKEND" ]] && fallback_cmd+=(--audio-backend="$AUDIO_BACKEND")
-        [[ -n "$AUDIO_CODEC" ]] && fallback_cmd+=(-C "$AUDIO_CODEC")
-        [[ -n "$AUDIO_BITRATE_KBPS" ]] && fallback_cmd+=(-P "b=${AUDIO_BITRATE_KBPS}k")
-        fallback_cmd+=(-R "$AUDIO_SAMPLE_RATE")
-    fi
 
     # Once a preferred encoder failure is observed, avoid repeated noisy retries.
     # In auto mode we can start directly in safe mode on subsequent runs.
@@ -344,19 +349,36 @@ start_recording_command() {
         force_safe_mode=true
     fi
 
-    if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Starting recording" "$output_name" -a 'Recorder' & disown; fi
+    run_and_confirm() {
+        local -a cmd=("$@")
+        "${cmd[@]}" &
+        local rec_pid=$!
+        sleep 1
+        if ! kill -0 "$rec_pid" 2>/dev/null; then
+            wait "$rec_pid" 2>/dev/null || true
+            return 1
+        fi
+        if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Starting recording" "$output_name" -a 'Recorder' & disown; fi
+        wait "$rec_pid"
+        return $?
+    }
+
     if $force_safe_mode; then
-        "${fallback_cmd[@]}"
+        run_and_confirm "${fallback_cmd[@]}"
         return
     fi
 
-    if ! "${preferred_cmd[@]}"; then
+    if ! run_and_confirm "${preferred_cmd[@]}"; then
         if is_truthy "$ENABLE_FALLBACK"; then
             mkdir -p "$state_dir" 2>/dev/null || true
             printf '1\n' > "$recorder_safe_marker" 2>/dev/null || true
             if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording fallback" "Preferred encoder failed, retrying with safe mode" -a 'Recorder' & disown; fi
-            "${fallback_cmd[@]}"
+            if ! run_and_confirm "${fallback_cmd[@]}"; then
+                if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording failed" "wf-recorder did not stay running" -a 'Recorder' & disown; fi
+                return 1
+            fi
         else
+            if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording failed" "wf-recorder did not stay running" -a 'Recorder' & disown; fi
             return 1
         fi
     fi
@@ -382,6 +404,7 @@ VIDEO_CRF="21"
 VAAPI_FILTER="scale_vaapi=format=nv12:out_range=full"
 ENABLE_FALLBACK="true"
 SHOW_NOTIFICATIONS="true"
+RECORD_WITH_SOUND="true"
 if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
     SAVE_PATH=$(jq -r '.screenRecord.savePath // empty' "$CONFIG_FILE" 2>/dev/null)
     QUALITY_PRESET=$(jq -r '.screenRecord.qualityPreset // "balanced"' "$CONFIG_FILE" 2>/dev/null)
@@ -401,6 +424,7 @@ if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
     VAAPI_FILTER=$(jq -r '.screenRecord.vaapiFilter // "scale_vaapi=format=nv12:out_range=full"' "$CONFIG_FILE" 2>/dev/null)
     ENABLE_FALLBACK=$(jq -r 'if .screenRecord.enableFallback == null then "true" else .screenRecord.enableFallback end' "$CONFIG_FILE" 2>/dev/null)
     SHOW_NOTIFICATIONS=$(jq -r 'if .screenRecord.showNotifications == null then "true" else .screenRecord.showNotifications end' "$CONFIG_FILE" 2>/dev/null)
+    RECORD_WITH_SOUND=$(jq -r 'if .screenRecord.recordWithSound == null then "true" else .screenRecord.recordWithSound end' "$CONFIG_FILE" 2>/dev/null)
 fi
 
 HARDWARE_DEVICE="$(resolve_hardware_device "$HARDWARE_DEVICE")"
@@ -463,6 +487,7 @@ MANUAL_REGION=""
 SOUND_FLAG=0
 FULLSCREEN_FLAG=0
 FORCE_STOP=0
+TOGGLE_FULLSCREEN_SOUND=0
 for ((i=0;i<${#ARGS[@]};i++)); do
     if [[ "${ARGS[i]}" == "--region" ]]; then
         if (( i+1 < ${#ARGS[@]} )); then
@@ -477,8 +502,23 @@ for ((i=0;i<${#ARGS[@]};i++)); do
         FULLSCREEN_FLAG=1
     elif [[ "${ARGS[i]}" == "--stop" ]]; then
         FORCE_STOP=1
+    elif [[ "${ARGS[i]}" == "--toggle-fullscreen-sound" ]]; then
+        TOGGLE_FULLSCREEN_SOUND=1
     fi
 done
+
+# Debounce duplicate explicit start actions from UI (double/triple click or repeated triggers).
+if [[ $FORCE_STOP -eq 0 && ( $FULLSCREEN_FLAG -eq 1 || -n "$MANUAL_REGION" ) ]]; then
+    now_ms="$(date +%s%3N 2>/dev/null || printf '%s000' "$(date +%s)")"
+    last_start_ms="$(cat "$recorder_last_start_ms_file" 2>/dev/null || true)"
+    if [[ "$last_start_ms" =~ ^[0-9]+$ ]]; then
+        delta_ms=$((now_ms - last_start_ms))
+        if [[ $delta_ms -ge 0 && $delta_ms -lt $recorder_start_cooldown_ms ]]; then
+            exit 0
+        fi
+    fi
+    printf '%s\n' "$now_ms" > "$recorder_last_start_ms_file" 2>/dev/null || true
+fi
 
 is_recorder_running=0
 if [[ -n "$PGREP_BIN" ]] && "$PGREP_BIN" -x wf-recorder > /dev/null; then
@@ -487,7 +527,28 @@ elif pgrep -x wf-recorder > /dev/null 2>&1; then
     is_recorder_running=1
 fi
 
-if [[ $FORCE_STOP -eq 1 || $is_recorder_running -eq 1 ]]; then
+# Single-command toggle mode for UI buttons:
+# - if recording, stop
+# - else start fullscreen with sound
+if [[ $TOGGLE_FULLSCREEN_SOUND -eq 1 ]]; then
+    if [[ $is_recorder_running -eq 1 ]]; then
+        FORCE_STOP=1
+    else
+        FULLSCREEN_FLAG=1
+        if is_truthy "$RECORD_WITH_SOUND"; then
+            SOUND_FLAG=1
+        fi
+    fi
+fi
+
+# Explicit start requests should never behave like "toggle stop".
+# This avoids accidental immediate stop when launchers trigger duplicate clicks.
+is_explicit_start=0
+if [[ $FULLSCREEN_FLAG -eq 1 || -n "$MANUAL_REGION" ]]; then
+    is_explicit_start=1
+fi
+
+if [[ $FORCE_STOP -eq 1 || ( $is_recorder_running -eq 1 && $is_explicit_start -eq 0 ) ]]; then
     if [[ -n "$PKILL_BIN" ]]; then
         "$PKILL_BIN" -SIGINT -x wf-recorder 2>/dev/null || true
     else
@@ -505,7 +566,8 @@ if [[ $FORCE_STOP -eq 1 || $is_recorder_running -eq 1 ]]; then
         last_saved="$(cat "$last_recording_path_file" 2>/dev/null || printf '%s' "$SAVE_PATH")"
     fi
     if is_truthy "$SHOW_NOTIFICATIONS"; then "${NOTIFY_BIN:-notify-send}" "Recording Stopped" "Saved: $last_saved" -a 'Recorder' & fi
-else
+    rm -f "$recorder_last_start_ms_file" 2>/dev/null || true
+elif [[ $is_recorder_running -eq 0 ]]; then
     timestamp="$(getdate)"
     output_file="$SAVE_PATH/recording_${timestamp}.mp4"
     output_name="recording_${timestamp}.mp4"
@@ -528,5 +590,11 @@ else
         fi
 
         start_recording_command "$region" "$output_name"
+    fi
+else
+    # Already recording and received an explicit start request.
+    # Keep the current recording running.
+    if is_truthy "$SHOW_NOTIFICATIONS"; then
+        "${NOTIFY_BIN:-notify-send}" "Recorder already running" "Use stop action to end current recording" -a 'Recorder' & disown
     fi
 fi

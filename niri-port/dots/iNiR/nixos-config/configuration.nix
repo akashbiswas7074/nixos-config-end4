@@ -132,6 +132,8 @@ in
 
   # CPU temp for `sensors` (Intel). Add more modules only after `sudo sensors-detect` suggests them.
   boot.kernelModules = [ "coretemp" ];
+  # Avoid spd5118 suspend/resume loop seen in kernel logs.
+  boot.blacklistedKernelModules = [ "spd5118" ];
 
   # NVIDIA Setup
   boot.kernelParams = ["nvidia_drm.modeset=1" "nvidia_drm.fbdev=1"];
@@ -181,6 +183,8 @@ in
   environment.systemPackages = with pkgs; [
     polkit_gnome
     dellGControllerLaunch
+    ntfs3g
+    thunar
     # sensors, sensors-detect, pwmconfig, fancontrol — see README (fancontrol *service* needs hardware.fancontrol + pwmconfig output)
     lm_sensors
     vim
@@ -191,6 +195,7 @@ in
     # code-cursor
     google-chrome
 antigravity
+    vlc
     foot          
     kitty         
     rofi 
@@ -199,6 +204,9 @@ antigravity
     swaylock      
     libnotify     
     wl-clipboard
+    wf-recorder
+    ffmpeg
+    slurp
     zstd
   ] ++ customApps;
 
@@ -232,8 +240,104 @@ antigravity
   services.envfs.enable = true;
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
+  services.logind.settings.Login = {
+    HandleLidSwitch = "hibernate";
+    HandleLidSwitchExternalPower = "hibernate";
+    HandleLidSwitchDocked = "ignore";
+    LidSwitchIgnoreInhibited = "no";
+    HoldoffTimeoutSec = "10s";
+  };
+  systemd.sleep.settings.Sleep = {
+    AllowSuspend = "yes";
+    AllowHibernation = "yes";
+    AllowSuspendThenHibernate = "yes";
+    SuspendState = "mem";
+    HibernateDelaySec = "10min";
+  };
+  # Guarantee session lock before any sleep transition.
+  environment.etc."systemd/system-sleep/10-lock-before-sleep".text = ''
+    #!/bin/sh
+    case "$1/$2" in
+      pre/*)
+        /run/current-system/sw/bin/loginctl lock-sessions || true
+        # Niri sessions can reject logind lock-session calls; invoke the compositor locker as the user.
+        for sid in $(/run/current-system/sw/bin/loginctl list-sessions --no-legend | ${pkgs.gawk}/bin/awk '{print $1}'); do
+          user="$(/run/current-system/sw/bin/loginctl show-session "$sid" -p Name --value 2>/dev/null || true)"
+          [ -n "$user" ] || continue
+          /run/current-system/sw/bin/runuser -u "$user" -- /run/current-system/sw/bin/env \
+            XDG_RUNTIME_DIR="/run/user/$(/run/current-system/sw/bin/id -u "$user")" \
+            DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(/run/current-system/sw/bin/id -u "$user")/bus" \
+            sh -lc '
+              export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+              export DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$(id -u)/bus"
+              export WAYLAND_DISPLAY="''${WAYLAND_DISPLAY:-wayland-1}"
+              if command -v inir >/dev/null 2>&1; then
+                ( inir lock activate >/dev/null 2>&1 & ) || true
+                exit 0
+              fi
+              if command -v swaylock >/dev/null 2>&1; then
+                ( swaylock -f >/dev/null 2>&1 & ) || true
+                exit 0
+              fi
+              if command -v loginctl >/dev/null 2>&1; then
+                loginctl lock-sessions || true
+              fi
+            '
+        done
+        # Give lock surface enough time to render before hibernate/suspend.
+        ${pkgs.coreutils}/bin/sleep 2
+        ;;
+    esac
+  '';
+  environment.etc."systemd/system-sleep/10-lock-before-sleep".mode = "0755";
+
+  # Turn off radios before suspend so BT/WiFi cannot wake the system; restore after resume.
+  environment.etc."systemd/system-sleep/15-quiet-suspend".text = ''
+    #!/bin/sh
+    RFKILL="${pkgs.util-linux}/bin/rfkill"
+    SYSTEMCTL="/run/current-system/sw/bin/systemctl"
+    MODPROBE="/run/current-system/sw/bin/modprobe"
+    case "$1/$2" in
+      pre/*)
+        "$RFKILL" block wlan 2>/dev/null || true
+        "$RFKILL" block bluetooth 2>/dev/null || true
+        ;;
+      post/*)
+        "$RFKILL" unblock wlan 2>/dev/null || true
+        "$RFKILL" unblock bluetooth 2>/dev/null || true
+        # Some Intel BT USB controllers need driver bounce after resume.
+        "$MODPROBE" -r btusb 2>/dev/null || true
+        "$MODPROBE" btusb 2>/dev/null || true
+        # Re-init BlueZ after driver recovery.
+        "$SYSTEMCTL" restart bluetooth.service 2>/dev/null || true
+        ;;
+    esac
+  '';
+  environment.etc."systemd/system-sleep/15-quiet-suspend".mode = "0755";
+
+  # Keep noisy ACPI wake sources disabled across boots. On many Intel laptops,
+  # Bluetooth wakeups are routed through XHCI/TXHC and can cause instant resume.
+  systemd.services.disable-acpi-wakeup-sources = {
+    description = "Disable noisy ACPI wake sources";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "local-fs.target" ];
+    serviceConfig.Type = "oneshot";
+    script = ''
+      for dev in XHCI TXHC RP07; do
+        if grep -q "^$dev" /proc/acpi/wakeup; then
+          status="$(grep "^$dev" /proc/acpi/wakeup | ${pkgs.gawk}/bin/awk '{print $3}')"
+          if [ "$status" = "*enabled" ]; then
+            echo "$dev" > /proc/acpi/wakeup
+          fi
+        fi
+      done
+    '';
+  };
   xdg.portal.enable = true;
   xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+  xdg.mime.defaultApplications = {
+    "inode/directory" = "thunar.desktop";
+  };
 
   programs.inir = {
     enable = true;
@@ -242,6 +346,53 @@ antigravity
     enableBluetooth = true;
     dellGSeries.enable = true;
   };
+
+  # Keep blueman applet startable and avoid duplicate ExecStart collisions from drop-ins.
+  systemd.user.services.blueman-applet = {
+    serviceConfig.ExecStart = lib.mkForce [
+      ""
+      "${pkgs.blueman}/bin/blueman-applet"
+    ];
+    serviceConfig.ExecStartPre = lib.mkForce [
+      "-${pkgs.procps}/bin/pkill -x blueman-applet"
+    ];
+  };
+
+  # Enforce stable idle timeouts on each nixos-rebuild switch (flake apply).
+  # This keeps runtime config aligned even if UI/local edits drift.
+  system.activationScripts.enforceInirIdleConfig.text = ''
+    USER_HOME="/home/akashbiswas"
+    CFG_DIR="$USER_HOME/.config/illogical-impulse"
+    CFG_FILE="$CFG_DIR/config.json"
+    mkdir -p "$CFG_DIR"
+
+    if [ ! -f "$CFG_FILE" ]; then
+      printf '{}\n' > "$CFG_FILE"
+      chown akashbiswas:users "$CFG_FILE" || true
+    fi
+
+    ${pkgs.python3}/bin/python3 - <<'PY'
+import json
+from pathlib import Path
+
+p = Path("/home/akashbiswas/.config/illogical-impulse/config.json")
+try:
+    data = json.loads(p.read_text() or "{}")
+except Exception:
+    data = {}
+
+idle = data.setdefault("idle", {})
+idle["suspendTimeout"] = 900
+idle["suspendCooldownSec"] = 120
+idle.setdefault("lockTimeout", 600)
+idle.setdefault("screenOffTimeout", 300)
+idle.setdefault("lockBeforeSleep", True)
+
+p.write_text(json.dumps(data, indent=4, ensure_ascii=False) + "\n")
+PY
+
+    chown akashbiswas:users "$CFG_FILE" || true
+  '';
 
   system.stateVersion = "25.11";
 }

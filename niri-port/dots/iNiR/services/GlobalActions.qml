@@ -169,7 +169,14 @@ Singleton {
             category: "system",
             keywords: ["lock", "security", "screen"],
             execute: () => {
-                root.runLauncher(["lock", "activate"])
+                Quickshell.execDetached([
+                    "bash",
+                    "-c",
+                    Config.subprocessPathShExport()
+                        + "SWAYLOCK_BIN=\"/run/current-system/sw/bin/swaylock\"; "
+                        + "[ -x \"$SWAYLOCK_BIN\" ] || SWAYLOCK_BIN=\"swaylock\"; "
+                        + "exec \"$SWAYLOCK_BIN\" -f"
+                ])
             }
         },
         {
@@ -390,12 +397,14 @@ Singleton {
             category: "tools",
             keywords: ["record", "screen", "video", "capture", "wf-recorder"],
             execute: () => {
-                const fishPath = `${FileUtils.trimFileProtocol(Directories.home)}/.nix-profile/bin/fish`
                 const rec = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath))
                 Quickshell.execDetached([
-                    fishPath,
+                    "bash",
                     "-c",
-                    `'${rec}' --fullscreen --sound`
+                    Config.subprocessSessionShExport()
+                        + `if '${Config.nixosSystemProfileBin}/pgrep' -x wf-recorder >/dev/null 2>&1; then `
+                        + `exec '${rec}' --stop; `
+                        + `else exec '${rec}' --fullscreen --sound; fi`
                 ])
             }
         },

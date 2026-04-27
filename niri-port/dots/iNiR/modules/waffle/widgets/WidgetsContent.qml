@@ -65,12 +65,14 @@ WBarAttachedPanelContent {
             GlobalStates.regionSelectorOpen = true
             break
         case "screenRecord":
-            const fishPath = `${FileUtils.trimFileProtocol(Directories.home)}/.nix-profile/bin/fish`
             const rec = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath))
             Quickshell.execDetached([
-                fishPath,
+                "bash",
                 "-c",
-                `'${rec}' --fullscreen --sound`
+                Config.subprocessSessionShExport()
+                    + `if '${Config.nixosSystemProfileBin}/pgrep' -x wf-recorder >/dev/null 2>&1; then `
+                    + `exec '${rec}' --stop; `
+                    + `else exec '${rec}' --fullscreen --sound; fi`
             ])
             break
         case "session":

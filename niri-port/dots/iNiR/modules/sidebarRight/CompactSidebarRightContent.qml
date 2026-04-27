@@ -1797,11 +1797,14 @@ Item {
                 icon: "videocam"
                 label: Translation.tr("Record")
                 onClicked: {
-                    const inirEsc = `${Quickshell.env("HOME")}/.nix-profile/bin/inir`.replace(/'/g, "'\\''")
+                    const rec = StringUtils.shellSingleQuoteEscape(FileUtils.trimFileProtocol(Directories.recordScriptPath))
                     Quickshell.execDetached([
                         "bash",
                         "-c",
-                        Config.subprocessPathShExport() + `exec '${inirEsc}' region record`
+                        Config.subprocessSessionShExport()
+                            + `if '${Config.nixosSystemProfileBin}/pgrep' -x wf-recorder >/dev/null 2>&1; then `
+                            + `exec '${rec}' --stop; `
+                            + `else exec '${rec}' --fullscreen --sound; fi`
                     ])
                     GlobalStates.sidebarRightOpen = false
                 }

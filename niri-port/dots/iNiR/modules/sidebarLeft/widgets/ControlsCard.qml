@@ -137,9 +137,10 @@ Item {
     }
 
     function lockScreen(): void {
-        const inirEsc = StringUtils.shellSingleQuoteEscape(`${Quickshell.env("HOME")}/.nix-profile/bin/inir`)
         root._lockCommand = Config.subprocessPathShExport()
-            + `'${inirEsc}' lock activate >/tmp/inir-lock.log 2>&1; `
+            + "SWAYLOCK_BIN=\"/run/current-system/sw/bin/swaylock\"; "
+            + "[ -x \"$SWAYLOCK_BIN\" ] || SWAYLOCK_BIN=\"swaylock\"; "
+            + "\"$SWAYLOCK_BIN\" -f >/tmp/inir-lock.log 2>&1; "
             + "echo LOCK:TRIGGERED"
         lockProc.command = ["bash", "-c", root._lockCommand]
         lockProc.running = true

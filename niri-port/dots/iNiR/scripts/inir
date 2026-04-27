@@ -2086,7 +2086,7 @@ launch_configured_files() {
     fi
 
     local fallback
-    for fallback in nautilus dolphin thunar pcmanfm xdg-open; do
+    for fallback in thunar nautilus dolphin pcmanfm xdg-open; do
         if command -v "$fallback" >/dev/null 2>&1; then
             if [[ "$fallback" == "xdg-open" ]]; then
                 if [[ $# -gt 0 ]]; then

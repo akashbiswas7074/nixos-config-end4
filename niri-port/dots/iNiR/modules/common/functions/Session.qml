@@ -35,7 +35,7 @@ Singleton {
         interval: 600
         repeat: false
         onTriggered: {
-            Quickshell.execDetached(["systemctl", "suspend", "-i"])
+            Quickshell.execDetached(["systemctl", "suspend-then-hibernate", "-i"])
         }
     }
 
@@ -50,7 +50,21 @@ Singleton {
     }
 
     function lock() {
-        Config.execInirDetached(["lock", "activate"]);
+        Quickshell.execDetached([
+            "bash",
+            "-c",
+            Config.subprocessPathShExport()
+                + "SWAYLOCK_BIN=\"/run/current-system/sw/bin/swaylock\"; "
+                + "if [ -x \"$SWAYLOCK_BIN\" ]; then "
+                + "exec \"$SWAYLOCK_BIN\" -f; "
+                + "fi; "
+                + "if command -v swaylock >/dev/null 2>&1; then "
+                + "exec swaylock -f; "
+                + "fi; "
+                + "if command -v hyprlock >/dev/null 2>&1; then exec hyprlock; fi; "
+                + "if command -v loginctl >/dev/null 2>&1; then exec loginctl lock-sessions; fi; "
+                + "exit 1"
+        ]);
     }
 
     function suspend() {
@@ -58,7 +72,7 @@ Singleton {
             lock()
             _suspendTimer.restart()
         } else {
-            Quickshell.execDetached(["systemctl", "suspend", "-i"])
+            Quickshell.execDetached(["systemctl", "suspend-then-hibernate", "-i"])
         }
     }
 

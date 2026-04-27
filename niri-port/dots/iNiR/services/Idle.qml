@@ -60,16 +60,32 @@ Singleton {
             }
         }
 
+        const lockBeforeIdle = Config.subprocessPathShExport()
+            + "export XDG_RUNTIME_DIR=\"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\"; "
+            + "export DBUS_SESSION_BUS_ADDRESS=\"${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}\"; "
+            + "export WAYLAND_DISPLAY=\"${WAYLAND_DISPLAY:-wayland-1}\"; "
+            + "if command -v inir >/dev/null 2>&1; then exec inir lock activate; fi; "
+            + "if [ -x /run/current-system/sw/bin/swaylock ]; then exec /run/current-system/sw/bin/swaylock -f; fi; "
+            + "exec swaylock -f"
         if (effectiveLockTimeout > 0) {
-            cmd.push("timeout", effectiveLockTimeout.toString(), `'${StringUtils.shellSingleQuoteEscape(root.launcherPath)}' lock activate`)
+            cmd.push("timeout", effectiveLockTimeout.toString(), lockBeforeIdle)
         }
 
         if (suspendTimeout > 0) {
-            cmd.push("timeout", suspendTimeout.toString(), "systemctl suspend -i")
+            const cool = Config.options?.idle?.suspendCooldownSec ?? 120
+            const suspendAfterIdle = Config.subprocessPathShExport()
+                + "export XDG_RUNTIME_DIR=\"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}\"; "
+                + "f=\"$XDG_RUNTIME_DIR/inir-idle-suspend-cooldown\"; "
+                + "now=$(date +%s); cool=" + String(cool) + "; "
+                + "if [ -f \"$f\" ]; then last=$(cat \"$f\" 2>/dev/null || echo 0); "
+                + "if [ \"$((now - last))\" -lt \"$cool\" ]; then exit 0; fi; fi; "
+                + "printf '%s\\n' \"$now\" > \"$f\"; "
+                + "exec systemctl suspend-then-hibernate -i"
+            cmd.push("timeout", suspendTimeout.toString(), suspendAfterIdle)
         }
 
         if (lockBeforeSleep) {
-            cmd.push("before-sleep", `'${StringUtils.shellSingleQuoteEscape(root.launcherPath)}' lock activate`)
+            cmd.push("before-sleep", lockBeforeIdle)
         }
 
         console.log("[Idle] Starting swayidle")

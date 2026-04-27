@@ -561,6 +561,14 @@ WSettingsPage {
             onCheckedChanged: root.setRecordingConfig("screenRecord.enableFallback", checked)
         }
 
+        WSettingsSwitch {
+            label: Translation.tr("Record with sound")
+            icon: "mic"
+            description: Translation.tr("Include system audio when starting recording from quick controls")
+            checked: Config.options?.screenRecord?.recordWithSound ?? true
+            onCheckedChanged: root.setRecordingConfig("screenRecord.recordWithSound", checked)
+        }
+
         WSettingsDropdown {
             visible: root.customRecordingPreset
             label: Translation.tr("Video codec")

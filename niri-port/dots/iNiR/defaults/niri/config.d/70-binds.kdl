@@ -46,8 +46,8 @@ binds {
     // Clipboard history overlay.
     Mod+V allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "clipboard" "toggle"; }
 
-    // Lock screen.
-    Mod+Alt+L allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "lock" "activate"; }
+    // Lock screen (hard lock, avoid session dialog route).
+    Mod+Alt+L allow-when-locked=true allow-inhibiting=false { spawn "/run/current-system/sw/bin/swaylock" "-f"; }
 
     // Region selector: screenshot / OCR / Google Lens search.
     Mod+Shift+S allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "region" "screenshot"; }
@@ -72,7 +72,8 @@ binds {
     Mod+Return allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "terminal"; }
     Super+T allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "terminal"; }
     Super+Return allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "terminal"; }
-    Super+E allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "files"; }
+    Mod+E allow-inhibiting=false { spawn "/run/current-system/sw/bin/thunar"; }
+    Super+E allow-inhibiting=false { spawn "/run/current-system/sw/bin/thunar"; }
     Super+W allow-inhibiting=false { spawn "/run/current-system/sw/bin/inir" "browser"; }
     // With mod-key "Super", only Mod+F9 (not also Super+F9) — duplicate Mod/Super confuses niri’s handler.
     // bash -c: same pattern as other shell spawns; full path to the NixOS system launcher.

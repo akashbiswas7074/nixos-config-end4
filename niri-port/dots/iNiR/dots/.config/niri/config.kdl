@@ -243,7 +243,7 @@ binds {
     Mod+V allow-inhibiting=false { spawn "inir" "clipboard" "toggle"; }
     
     // ii Lock screen
-    Mod+Alt+L allow-when-locked=true allow-inhibiting=false { spawn "inir" "lock" "activate"; }
+    Mod+Alt+L allow-when-locked=true allow-inhibiting=false { spawn "swaylock" "-f"; }
     
     // ii Region tools
     Mod+Shift+S allow-inhibiting=false { spawn "inir" "region" "screenshot"; }
@@ -268,7 +268,8 @@ binds {
     Mod+Return allow-inhibiting=false { spawn "inir" "terminal"; }
     Super+T allow-inhibiting=false { spawn "inir" "terminal"; }
     Super+Return allow-inhibiting=false { spawn "inir" "terminal"; }
-    Super+E allow-inhibiting=false { spawn "inir" "files"; }
+    Mod+E allow-inhibiting=false { spawn "/run/current-system/sw/bin/thunar"; }
+    Super+E allow-inhibiting=false { spawn "/run/current-system/sw/bin/thunar"; }
     Super+W allow-inhibiting=false { spawn "bash" "-c" "xdg-open https://"; }
     // Dell G — one bind only: with mod-key "Super", Mod+F9 is the same key as "Windows+F9" (do not also bind Super+F9: niri can pick the wrong duplicate).
     Mod+F9 allow-inhibiting=false hotkey-overlay-title="Dell G fan/power" { spawn "bash" "-c" "exec /run/current-system/sw/bin/dell-g-controller-launch"; }

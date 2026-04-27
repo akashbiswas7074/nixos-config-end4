@@ -90,10 +90,10 @@ Singleton {
             id: "bluetooth",
             label: Translation.tr("Bluetooth settings"),
             description: Translation.tr("Used by Bluetooth toggles, dialogs, and action center shortcuts."),
-            defaultCommand: "blueman-manager",
+            defaultCommand: "bash -lc \"rfkill unblock bluetooth >/dev/null 2>&1; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do busctl --system get-name-owner org.bluez >/dev/null 2>&1 && break; sleep 0.5; done; bluetoothctl power on >/dev/null 2>&1; sleep 0.4; exec blueman-manager\"",
             placeholder: "kcmshell6 kcm_bluetooth",
             presets: [
-                { id: "blueman", label: "Blueman", command: "blueman-manager" },
+                { id: "blueman", label: "Blueman", command: "bash -lc \"rfkill unblock bluetooth >/dev/null 2>&1; for i in 1 2 3 4 5 6 7 8 9 10 11 12; do busctl --system get-name-owner org.bluez >/dev/null 2>&1 && break; sleep 0.5; done; bluetoothctl power on >/dev/null 2>&1; sleep 0.4; exec blueman-manager\"" },
                 { id: "kcm-bluetooth", label: "KDE Bluetooth", command: "kcmshell6 kcm_bluetooth" },
                 { id: "gnome-bluetooth", label: "GNOME Bluetooth", command: "gnome-control-center bluetooth" }
             ]

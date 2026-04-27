@@ -308,6 +308,13 @@ ContentPage {
                 onCheckedChanged: Config.setNestedValue("screenRecord.showNotifications", checked)
             }
 
+            SettingsSwitch {
+                buttonIcon: "mic"
+                text: Translation.tr("Record with sound")
+                checked: Config.options?.screenRecord?.recordWithSound ?? true
+                onCheckedChanged: Config.setNestedValue("screenRecord.recordWithSound", checked)
+            }
+
             NoticeBox {
                 Layout.fillWidth: true
                 materialIcon: recordingCapabilitiesLoaded ? (gpuRecordingAvailable ? "memory" : "developer_mode") : "progress_activity"

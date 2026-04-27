@@ -57,6 +57,7 @@
               home.packages = with pkgsx; [
                 jq
                 fish
+                ntfs3g
                 neovim
                 lazygit
                 nodejs
