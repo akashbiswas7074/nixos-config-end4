@@ -202,5 +202,25 @@
           };
         }
       );
+
+      apps = eachSystem (system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = {
+            type = "app";
+            program = toString (pkgs.writeShellScript "apply-all" ''
+              # Run the apply.sh script from the current directory
+              if [ -f "./apply.sh" ]; then
+                exec ./apply.sh "$@"
+              else
+                echo "Error: apply.sh not found in current directory." >&2
+                exit 1
+              fi
+            '');
+          };
+        }
+      );
     };
 }

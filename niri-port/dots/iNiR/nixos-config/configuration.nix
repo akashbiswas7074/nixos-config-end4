@@ -40,19 +40,45 @@ let
   '';
 
   # Use files directly from Download folder to avoid large binary commits.
-  localCursor = /home/akashbiswas/Desktop/control/Download/Cursor-3.2.11-x86_64.AppImage;
-  localAntigrav = /home/akashbiswas/Desktop/control/Download/Antigravity.tar.gz;
-  localCode = /home/akashbiswas/Desktop/control/Download/code-stable-x64-1776814219.tar.gz;
+  # Note: These absolute paths require --impure flag during nixos-rebuild.
+  localCursor = builtins.path { path = /home/akashbiswas/Desktop/control/Download/Cursor-3.2.16-x86_64.AppImage; name = "Cursor.AppImage"; };
+  localAntigrav = builtins.path { path = /home/akashbiswas/Desktop/control/Download/Antigravity.tar.gz; name = "Antigravity.tar.gz"; };
+  localCode = builtins.path { path = /home/akashbiswas/Desktop/control/Download/code-stable-x64-1776814219.tar.gz; name = "code-stable.tar.gz"; };
+  discordWrapped = pkgs.symlinkJoin {
+    name = "discord-wrapped";
+    paths = [ pkgs.vesktop ];
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+    postBuild = ''
+      if [ -x "$out/bin/vesktop" ]; then
+        makeWrapper "$out/bin/vesktop" "$out/bin/discord" \
+          --add-flags "--disable-gpu"
+      fi
+
+      mkdir -p "$out/share/applications"
+      cat > "$out/share/applications/discord.desktop" <<'EOF'
+[Desktop Entry]
+Name=Discord
+Exec=discord
+Icon=discord
+Type=Application
+Categories=Network;InstantMessaging;
+StartupWMClass=vesktop
+EOF
+      if [ -f "$out/share/applications/vesktop.desktop" ]; then
+        rm -f "$out/share/applications/vesktop.desktop"
+      fi
+    '';
+  };
   customApps = let
     appimageContents = if builtins.pathExists localCursor then pkgs.appimageTools.extractType2 {
       pname = "cursor";
-      version = "3.2.11";
+      version = "3.2.16";
       src = localCursor;
     } else null;
   in lib.optionals (builtins.pathExists localCursor) [
     (pkgs.stdenv.mkDerivation {
       pname = "cursor";
-      version = "3.2.11";
+      version = "3.2.16";
       src = appimageContents;
       nativeBuildInputs = [ pkgs.makeWrapper ];
       buildInputs = with pkgs; [
@@ -233,10 +259,13 @@ in
     vim
     wget
     git
-    # vscode
+    # These are installed via customApps below
+    # vscode-local
     # cursor
-    # code-cursor
+    # antigravity
     google-chrome
+    discordWrapped
+    telegram-desktop
     vlc
     foot          
     kitty         
