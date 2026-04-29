@@ -259,6 +259,7 @@ in
     vim
     wget
     git
+    github-cli
     # These are installed via customApps below
     # vscode-local
     # cursor
