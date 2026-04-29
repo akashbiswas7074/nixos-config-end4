@@ -406,6 +406,7 @@ in
       done
     '';
   };
+  services.gnome.gnome-keyring.enable = true;
   xdg.portal.enable = true;
   xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
   xdg.mime.defaultApplications = {
