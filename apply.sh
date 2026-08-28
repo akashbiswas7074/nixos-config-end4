@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export PATH="/run/wrappers/bin:$PATH"
+unset LD_LIBRARY_PATH
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "--- Applying NixOS Configuration (System) ---"
-sudo nixos-rebuild switch --flake "$SCRIPT_DIR#nixos" --impure
+sudo ./result/bin/switch-to-configuration switch
 
 echo ""
 echo "--- Applying Home Manager Configuration (User) ---"

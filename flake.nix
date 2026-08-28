@@ -9,9 +9,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     niri-flake.url = "github:sodiboo/niri-flake";
+    zen-browser = {
+      url = "github:0xc000022070/zen-browser-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, home-manager, systems, niri-flake, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, systems, niri-flake, zen-browser, ... }@inputs:
     let
       eachSystem = nixpkgs.lib.genAttrs (import systems);
       pkgsx = nixpkgs.legacyPackages."x86_64-linux";
@@ -23,7 +27,7 @@
       lib = nixpkgs.lib // { inherit inir; };
 
       nixosConfigurations.nixos = nixpkgs.lib.nixosSystem {
-        specialArgs = { inirFlake = inir; };
+        specialArgs = { inirFlake = inir; inherit inputs; };
         modules = [
           ./niri-port/dots/iNiR/nixos-config/configuration.nix
           { nixpkgs.hostPlatform = "x86_64-linux"; }

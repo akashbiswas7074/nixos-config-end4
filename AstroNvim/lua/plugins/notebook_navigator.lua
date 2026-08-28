@@ -2,7 +2,7 @@
 return {
   {
     "GCBallesteros/NotebookNavigator.nvim",
-    ft = { "python", "markdown", "quarto" },
+    ft = { "python", "markdown", "quarto", "ipynb" },
     dependencies = {
       "benlubas/molten-nvim",
     },
@@ -22,15 +22,5 @@ return {
       vim.api.nvim_create_user_command("CellRun", function() nn.run_cell() end, { desc = "Run current notebook cell" })
       vim.api.nvim_create_user_command("CellRunNext", function() nn.run_and_move() end, { desc = "Run cell and move next" })
     end,
-    keys = {
-      { "]n", function() require("notebook-navigator").move_cell "d" end, desc = "Notebook: next cell" },
-      { "[n", function() require("notebook-navigator").move_cell "u" end, desc = "Notebook: previous cell" },
-      { "<Leader>mn", function() require("notebook-navigator").run_and_move() end, desc = "Notebook: run and next" },
-      { "<Leader>mR", function() require("notebook-navigator").run_all_cells() end, desc = "Notebook: run all cells" },
-      { "<Leader>mB", function() require("notebook-navigator").run_cells_below() end, desc = "Notebook: run cells below" },
-      { "<Leader>mS", function() require("notebook-navigator").split_cell() end, desc = "Notebook: split cell" },
-      { "<Leader>ma", function() require("notebook-navigator").add_cell_below() end, desc = "Notebook: add cell below" },
-      { "<Leader>mA", function() require("notebook-navigator").add_cell_above() end, desc = "Notebook: add cell above" },
-    },
   },
 }

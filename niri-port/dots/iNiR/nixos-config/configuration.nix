@@ -3,6 +3,7 @@
 let
   # Flake: `specialArgs` from repo `flake.nix`, or the unified repo-root flake's `lib.inir`.
   inirFlake = args.inirFlake or (builtins.getFlake (toString ../../../../.)).lib.inir;
+  inputs = args.inputs or (builtins.getFlake (toString ../../../../.)).inputs;
   # Sibling of niri-port/ — installs "dell-g-controller-launch" (see README: Niri keybind is ~/.config, use scripts/sync-niri-config-kdl.sh).
   dellControllerRoot =
     let
@@ -42,8 +43,10 @@ let
   # Use files directly from Download folder to avoid large binary commits.
   # Note: These absolute paths require --impure flag during nixos-rebuild.
   localCursor = builtins.path { path = /home/akashbiswas/Desktop/control/Download/Cursor-3.2.16-x86_64.AppImage; name = "Cursor.AppImage"; };
-  localAntigrav = builtins.path { path = /home/akashbiswas/Desktop/control/Download/Antigravity.tar.gz; name = "Antigravity.tar.gz"; };
-  localCode = builtins.path { path = /home/akashbiswas/Desktop/control/Download/code-stable-x64-1776814219.tar.gz; name = "code-stable.tar.gz"; };
+  localAntigravPath = "/home/akashbiswas/Desktop/control/Download/Antigravity IDE.tar.gz";
+  localAntigrav = if builtins.pathExists localAntigravPath then builtins.path { path = /. + localAntigravPath; name = "Antigravity-IDE.tar.gz"; } else null;
+  localCode = builtins.path { path = /home/akashbiswas/Desktop/control/Download/code-stable-x64-1778618960.tar.gz; name = "code-stable.tar.gz"; };
+
   discordWrapped = pkgs.symlinkJoin {
     name = "discord-wrapped";
     paths = [ pkgs.vesktop ];
@@ -101,7 +104,7 @@ EOF
             fontconfig freetype gdk-pixbuf glib gtk3 libdrm libgbm libnotify libuuid
             xorg.libxcb xorg.libxshmfence libxkbcommon nss nspr pango systemd libsoup_3 libxkbfile
           ])} \
-          --add-flags "--no-sandbox"
+          --add-flags "--no-sandbox --enable-features=WaylandWindowDecorations --ozone-platform-hint=auto"
           
         install -m 444 -D $out/share/cursor/cursor.desktop -t $out/share/applications
         substituteInPlace $out/share/applications/cursor.desktop \
@@ -110,7 +113,7 @@ EOF
         cp -r $out/share/cursor/usr/share/icons $out/share || true
       '';
     })
-  ] ++ lib.optionals (builtins.pathExists localAntigrav) [
+  ] ++ lib.optionals (localAntigrav != null) [
     (pkgs.stdenv.mkDerivation rec {
       pname = "antigravity";
       version = "current";
@@ -122,9 +125,10 @@ EOF
       installPhase = ''
         mkdir -p $out/bin $out/opt/antigravity $out/share/applications $out/share/pixmaps
         cp -r . $out/opt/antigravity/
-        chmod +x $out/opt/antigravity/antigravity
-        makeWrapper $out/opt/antigravity/antigravity $out/bin/antigravity \
-          --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [ at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile webkitgtk_4_1 ])}
+        chmod +x $out/opt/antigravity/antigravity-ide
+        makeWrapper $out/opt/antigravity/antigravity-ide $out/bin/antigravity \
+          --unset LD_LIBRARY_PATH \
+          --add-flags "--no-sandbox --disable-gpu"
 
         # Icon
         cp $out/opt/antigravity/resources/app/resources/linux/code.png $out/share/pixmaps/antigravity.png
@@ -153,9 +157,9 @@ EOF
         mkdir -p $out/bin $out/opt/vscode $out/share/applications $out/share/pixmaps
         cp -r . $out/opt/vscode/
         chmod +x $out/opt/vscode/code
-        makeWrapper $out/opt/vscode/code $out/bin/code-local \
-          --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [ at-spi2-atk atk alsa-lib cairo cups dbus expat fontconfig freetype gdk-pixbuf glib gtk3 libGL libx11 libxcomposite libxcursor libxdamage libxext libxfixes libxi libxrandr libxrender libxtst libdrm libgbm libnotify libsecret libuuid libxcb libxkbcommon mesa nss nspr pango systemd libsoup_3 libxkbfile ])} \
-          --add-flags "--no-sandbox"
+        makeWrapper $out/opt/vscode/code $out/bin/code \
+          --unset LD_LIBRARY_PATH \
+          --add-flags "--no-sandbox --disable-gpu"
 
         # Icon
         cp $out/opt/vscode/resources/app/resources/linux/code.png $out/share/pixmaps/vscode-local.png
@@ -164,7 +168,7 @@ EOF
         cat > $out/share/applications/vscode-local.desktop <<EOF
 [Desktop Entry]
 Name=VS Code (Local)
-Exec=code-local
+Exec=code
 Icon=vscode-local
 Type=Application
 Categories=Development;TextEditor;
@@ -185,6 +189,7 @@ in
 
   networking.hostName = "nixos"; 
   networking.networkmanager.enable = true;
+  services.tailscale.enable = true;
 
   time.timeZone = "Asia/Kolkata";
   i18n.defaultLocale = "en_IN";
@@ -224,6 +229,10 @@ in
     };
   };
 
+  systemd.settings.Manager = {
+    DefaultTimeoutStopSec = "10s";
+  };
+
   services.printing.enable = true;
 
   # Audio
@@ -244,7 +253,19 @@ in
   };
 
   programs.firefox.enable = true;
+  programs.xwayland.enable = true;
+  environment.sessionVariables = {
+    DISPLAY = ":0";
+    NIXOS_OZONE_WL = "1";
+  };
   nixpkgs.config.allowUnfree = true;
+  nixpkgs.overlays = [
+    (final: prev: {
+      openldap = prev.openldap.overrideAttrs (old: {
+        doCheck = false;
+      });
+    })
+  ];
 
   # GUI for many GPUs/AIOs; Dell G laptops may need Dell G Series Controller (Mod+F9 / Super+F9) instead.
   programs.coolercontrol.enable = true;
@@ -260,11 +281,14 @@ in
     wget
     git
     github-cli
+    tmux
     # These are installed via customApps below
-    # vscode-local
+    # vscode
     # cursor
     # antigravity
     google-chrome
+    floorp-bin
+    inputs.zen-browser.packages.${pkgs.stdenv.hostPlatform.system}.default
     discordWrapped
     telegram-desktop
     vlc
@@ -281,6 +305,9 @@ in
     ffmpeg
     slurp
     zstd
+    remmina
+    freerdp
+    xwayland-satellite
   ] ++ customApps;
 
   # Nix-LD for binary compatibility
@@ -310,12 +337,13 @@ in
   ];
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.auto-optimise-store = true;
   services.envfs.enable = true;
   services.power-profiles-daemon.enable = true;
   services.upower.enable = true;
   services.logind.settings.Login = {
-    HandleLidSwitch = "hibernate";
-    HandleLidSwitchExternalPower = "hibernate";
+    HandleLidSwitch = "ignore";
+    HandleLidSwitchExternalPower = "ignore";
     HandleLidSwitchDocked = "ignore";
     LidSwitchIgnoreInhibited = "no";
     HoldoffTimeoutSec = "10s";
@@ -375,6 +403,7 @@ in
         "$RFKILL" block wlan 2>/dev/null || true
         "$RFKILL" block bluetooth 2>/dev/null || true
         ;;
+
       post/*)
         "$RFKILL" unblock wlan 2>/dev/null || true
         "$RFKILL" unblock bluetooth 2>/dev/null || true

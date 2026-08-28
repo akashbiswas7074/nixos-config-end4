@@ -35,6 +35,14 @@ return {
           ["<Leader>md"] = { "<Cmd>MoltenDelete<CR>", desc = "Molten: Delete cell" },
           ["<Leader>mI"] = { "<Cmd>MoltenImportOutput<CR>", desc = "Molten: Import notebook output" },
           ["<Leader>mE"] = { "<Cmd>MoltenExportOutput!<CR>", desc = "Molten: Export notebook output" },
+          -- Notebook Navigator Commands
+          ["<Leader>mn"] = { function() require("notebook-navigator").run_and_move() end, desc = "Notebook: Run and next" },
+          ["<Leader>mR"] = { function() require("notebook-navigator").run_all_cells() end, desc = "Notebook: Run all cells" },
+          ["<Leader>mB"] = { function() require("notebook-navigator").run_cells_below() end, desc = "Notebook: Run cells below" },
+          ["<Leader>ma"] = { function() require("notebook-navigator").add_cell_below() end, desc = "Notebook: Add cell below" },
+          ["<Leader>mA"] = { function() require("notebook-navigator").add_cell_above() end, desc = "Notebook: Add cell above" },
+          ["]n"] = { function() require("notebook-navigator").move_cell "d" end, desc = "Notebook: Next cell" },
+          ["[n"] = { function() require("notebook-navigator").move_cell "u" end, desc = "Notebook: Previous cell" },
         },
         v = {
           ["<Leader>mv"] = { "<Cmd>MoltenEvaluateVisual<CR>", desc = "Molten: Eval visual" },

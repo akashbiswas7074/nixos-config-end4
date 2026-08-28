@@ -11,6 +11,9 @@
 // sycoca database so KDE/Qt apps see the correct .desktop entries.
 spawn-at-startup "bash" "-c" "systemctl --user import-environment XDG_MENU_PREFIX && kbuildsycoca6"
 
+// Start XWayland integration for legacy apps (Wine/Bottles)
+spawn-at-startup "xwayland-satellite"
+
 // Clipboard history: wl-paste watches the clipboard and cliphist stores it.
 // Using type-specific watchers prevents duplicate entries (browsers offer both
 // text/html and text/plain — without --type, cliphist stores both).
