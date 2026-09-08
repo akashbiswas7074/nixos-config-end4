@@ -42,10 +42,10 @@ let
 
   # Use files directly from Download folder to avoid large binary commits.
   # Note: These absolute paths require --impure flag during nixos-rebuild.
-  localCursor = builtins.path { path = /home/akashbiswas/Desktop/control/Download/Cursor-3.2.16-x86_64.AppImage; name = "Cursor.AppImage"; };
+  localCursor = builtins.path { path = /home/akashbiswas/Desktop/control/Download/Cursor-3.19.13-x86_64.AppImage; name = "Cursor.AppImage"; };
   localAntigravPath = "/home/akashbiswas/Desktop/control/Download/Antigravity IDE.tar.gz";
   localAntigrav = if builtins.pathExists localAntigravPath then builtins.path { path = /. + localAntigravPath; name = "Antigravity-IDE.tar.gz"; } else null;
-  localCode = builtins.path { path = /home/akashbiswas/Desktop/control/Download/code-stable-x64-1778618960.tar.gz; name = "code-stable.tar.gz"; };
+  localCode = builtins.path { path = /home/akashbiswas/Desktop/control/Download/code-stable-x64-1788413682.tar.gz; name = "code-stable.tar.gz"; };
 
   discordWrapped = pkgs.symlinkJoin {
     name = "discord-wrapped";
@@ -75,36 +75,36 @@ EOF
   customApps = let
     appimageContents = if builtins.pathExists localCursor then pkgs.appimageTools.extractType2 {
       pname = "cursor";
-      version = "3.2.16";
+      version = "3.19.13";
       src = localCursor;
     } else null;
   in lib.optionals (builtins.pathExists localCursor) [
     (pkgs.stdenv.mkDerivation {
       pname = "cursor";
-      version = "3.2.16";
+      version = "3.19.13";
       src = appimageContents;
-      nativeBuildInputs = [ pkgs.makeWrapper ];
+      nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper ];
       buildInputs = with pkgs; [
         glib nss nspr at-spi2-atk at-spi2-core atk cups libdrm gtk3 mesa
         libsecret pango cairo alsa-lib dbus expat fontconfig freetype
         gdk-pixbuf xorg.libX11 xorg.libXcomposite xorg.libXcursor xorg.libXdamage xorg.libXext
         xorg.libXfixes xorg.libXi xorg.libXrandr xorg.libXrender xorg.libXtst libuuid xorg.libxcb
-        xorg.libxshmfence libxkbcommon libgbm systemd
+        xorg.libxshmfence libxkbcommon libgbm systemd gsettings-desktop-schemas
+        stdenv.cc.cc.lib zlib zstd openssl curl libxml2 xz icu libglvnd libGL libnotify libsoup_3 libxkbfile
       ];
       installPhase = ''
         mkdir -p $out/bin $out/share/applications $out/share/cursor
         cp -r . $out/share/cursor
         
-        makeWrapper $out/share/cursor/usr/bin/cursor $out/bin/cursor \
-          --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath (with pkgs; [
-            stdenv.cc.cc.lib zlib zstd openssl curl expat libxml2 xz icu
-            libglvnd mesa libGL xorg.libX11 xorg.libXext xorg.libXrender xorg.libXinerama
-            xorg.libXcursor xorg.libXcomposite xorg.libXdamage xorg.libXrandr xorg.libXfixes
-            xorg.libXi xorg.libXtst libsecret at-spi2-atk atk alsa-lib cairo cups dbus
-            fontconfig freetype gdk-pixbuf glib gtk3 libdrm libgbm libnotify libuuid
-            xorg.libxcb xorg.libxshmfence libxkbcommon nss nspr pango systemd libsoup_3 libxkbfile
-          ])} \
-          --add-flags "--no-sandbox --enable-features=WaylandWindowDecorations --ozone-platform-hint=auto"
+        makeWrapper $out/share/cursor/usr/share/cursor/cursor $out/bin/cursor \
+          --run 'if [ ! -t 1 ]; then exec 1>/dev/null 2>&1; fi' \
+          --unset ELECTRON_OZONE_PLATFORM_HINT \
+          --unset NIXOS_OZONE_WL \
+          --unset LD_LIBRARY_PATH \
+          --set GDK_BACKEND x11 \
+          --prefix PATH : "${pkgs.lib.makeBinPath [ pkgs.xdg-utils pkgs.coreutils ]}" \
+          --prefix XDG_DATA_DIRS : "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$out/share" \
+          --add-flags "--no-sandbox --ozone-platform=x11"
           
         install -m 444 -D $out/share/cursor/cursor.desktop -t $out/share/applications
         substituteInPlace $out/share/applications/cursor.desktop \
