@@ -69,7 +69,7 @@ RowLayout {
         focus: GlobalStates.overviewOpen
         font.pixelSize: Appearance.font.pixelSize.small
         placeholderText: Translation.tr("Search, calculate or run")
-        implicitWidth: root.searchingText == "" ? Appearance.sizes.searchWidthCollapsed : Appearance.sizes.searchWidth
+        implicitWidth: Appearance.sizes.searchWidth
 
         Behavior on implicitWidth {
             id: searchWidthBehavior

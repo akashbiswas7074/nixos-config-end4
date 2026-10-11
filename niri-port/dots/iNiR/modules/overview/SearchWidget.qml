@@ -14,7 +14,7 @@ Item { // Wrapper
     id: root
     readonly property string xdgConfigHome: Directories.config
     property string searchingText: ""
-    property bool showResults: searchingText != ""
+    property bool showResults: true
     property real availableHeight: root.QsWindow?.window?.height ?? (root.QsWindow?.window?.screen?.height ?? 1080)
     readonly property bool actionMode: searchingText.startsWith(root.prefixAction)
     readonly property string actionQuery: actionMode ? StringUtils.cleanPrefix(searchingText, root.prefixAction) : ""
@@ -111,6 +111,7 @@ Item { // Wrapper
         searchBar.searchInput.text = "";
         root.searchingText = "";
         searchBar.animateWidth = true;
+        root.updateSearchResults();
     }
 
     function setSearchingText(text) {
@@ -129,7 +130,27 @@ Item { // Wrapper
         const text = root.debouncedSearchText;
         
         if (text === "") {
-            root.cachedResults = [];
+            const appEntries = AppSearch.list ?? [];
+            const seenAppNames = new Set();
+            const appResultObjects = [];
+            for (let i = 0; i < appEntries.length; i++) {
+                const entry = appEntries[i];
+                const nameKey = (entry?.name ?? "").trim().toLowerCase();
+                if (nameKey.length === 0) continue;
+                if (seenAppNames.has(nameKey)) continue;
+                seenAppNames.add(nameKey);
+
+                appResultObjects.push({
+                    key: `app_${entry.name}`,
+                    name: entry.name,
+                    clickActionName: Translation.tr("Launch"),
+                    type: Translation.tr("App"),
+                    comment: entry.comment ?? "",
+                    icon: entry.icon,
+                    execute: entry.execute,
+                });
+            }
+            root.cachedResults = appResultObjects;
             return;
         }
 
@@ -317,6 +338,26 @@ Item { // Wrapper
         searchDebounceTimer.restart();
     }
 
+    Component.onCompleted: root.updateSearchResults()
+
+    Connections {
+        target: AppSearch
+        function onListChanged() {
+            if (root.searchingText === "") {
+                root.updateSearchResults();
+            }
+        }
+    }
+
+    Connections {
+        target: GlobalStates
+        function onOverviewOpenChanged() {
+            if (GlobalStates.overviewOpen && root.searchingText === "") {
+                root.updateSearchResults();
+            }
+        }
+    }
+
     Timer {
         id: nonAppResultsTimer
         interval: (Config.options?.search?.nonAppResultDelay ?? 30)
@@ -464,7 +505,7 @@ Item { // Wrapper
 
             Rectangle {
                 // Separator
-                visible: root.showResults && !root.actionMode
+                visible: root.showResults && !root.actionMode && root.cachedResults.length > 0
                 Layout.fillWidth: true
                 height: 1
                 color: Appearance.colors.colOutlineVariant
@@ -483,9 +524,11 @@ Item { // Wrapper
 
             ListView { // App results
                 id: appResults
-                visible: root.showResults && !root.actionMode
+                visible: root.showResults && !root.actionMode && root.cachedResults.length > 0
                 Layout.fillWidth: true
-                implicitHeight: Math.min(root.resultsAvailableHeight, appResults.contentHeight + topMargin + bottomMargin)
+                implicitHeight: root.searchingText === ""
+                    ? Math.min(380, Math.min(root.resultsAvailableHeight, appResults.contentHeight + topMargin + bottomMargin))
+                    : Math.min(root.resultsAvailableHeight, appResults.contentHeight + topMargin + bottomMargin)
                 clip: true
                 topMargin: 10
                 bottomMargin: 10

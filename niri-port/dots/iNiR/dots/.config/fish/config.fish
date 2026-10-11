@@ -23,9 +23,10 @@ if status is-interactive
     alias q 'qs -c ii'
 
     # >>> mamba initialize >>>
-    # !! Contents within this block are managed by 'micromamba shell init' !!
-    set -gx MAMBA_EXE "/nix/store/11105gqwz8ki86j3qspqhyykxddwyibq-micromamba-2.4.0/bin/micromamba"
-    set -gx MAMBA_ROOT_PREFIX "/home/akashbiswas/micromamba"
-    $MAMBA_EXE shell hook --shell fish --root-prefix $MAMBA_ROOT_PREFIX | source
+    if type -q micromamba
+        set -gx MAMBA_EXE (type -p micromamba)
+        set -gx MAMBA_ROOT_PREFIX "$HOME/micromamba"
+        $MAMBA_EXE shell hook --shell fish --root-prefix $MAMBA_ROOT_PREFIX | source
+    end
     # <<< mamba initialize <<<
 end

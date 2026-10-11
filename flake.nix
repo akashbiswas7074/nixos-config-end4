@@ -157,8 +157,9 @@
       packages = eachSystem (system:
         let
           p = nixpkgs.legacyPackages.${system};
+          artcraft = import ./pkgs/artcraft.nix { pkgs = p; };
         in
-        (inir.packages.${system} or { }) // {
+        (inir.packages.${system} or { }) // artcraft // {
           inir-quickshell-python = p.callPackage ./niri-port/inir-quickshell-python.nix { };
         }
       );
