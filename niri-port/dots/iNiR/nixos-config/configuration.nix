@@ -336,6 +336,12 @@ in
     libsecret
   ];
 
+  # Seamless AppImage execution via binfmt (allows ArtCraft Launcher to open downloaded AppImages)
+  programs.appimage = {
+    enable = true;
+    binfmt = true;
+  };
+
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   nix.settings.auto-optimise-store = true;
   services.envfs.enable = true;
